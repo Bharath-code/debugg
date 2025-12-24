@@ -1,0 +1,139 @@
+name: Debugg CI Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality-gates:
+    name: Debugg Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Build project
+      run: bun run build
+
+    - name: Run tests
+      run: bun test
+
+    - name: Run Debugg CI Quality Gates
+      id: debugg-ci
+      run: |
+        # Run Debugg quality gates
+        bun run debugg:ci
+
+        # Capture the output for GitHub annotations
+        echo "DEBUGG_OUTPUT<<EOF" >> $GITHUB_ENV
+        bun run debugg:ci >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Generate Debugg Investor Report
+      if: always()
+      run: bun run debugg:report
+
+    - name: Upload Debugg Metrics
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: debugg-metrics
+        path: |
+          debugg-metrics.json
+          debugg-report.txt
+
+    - name: Comment on PR with Debugg Results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('debugg-report.txt', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🚀 Debugg CI Report
+
+            \`\`\`
+            ${report}
+            \`\`\`
+
+            **Quality Gates**: ${process.env.DEBUGG_OUTPUT.includes('PASSED') ? '✅ PASSED' : '❌ FAILED'}
+
+            *Debugg is monitoring your code quality and providing investor-ready metrics!*
+            `
+          });
+
+  metrics:
+    name: Debugg Metrics Collection
+    runs-on: ubuntu-latest
+    needs: quality-gates
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Collect Debugg Metrics
+      run: |
+        # Generate metrics report
+        bun run generate-report.ts > debugg-metrics.json
+
+        # Extract key metrics
+        echo "MTTD=$(jq '.meanTimeToDebug' debugg-metrics.json)" >> $GITHUB_ENV
+        echo "ERROR_REDUCTION=$(jq '.errorReduction' debugg-metrics.json)" >> $GITHUB_ENV
+        echo "TEAM_ADOPTION=$(jq '.teamAdoption' debugg-metrics.json)" >> $GITHUB_ENV
+
+    - name: Create Metrics Badge
+      run: |
+        # Create a simple metrics badge
+        echo "DEBUGG_METRICS<<EOF" >> $GITHUB_ENV
+        echo "### Debugg Pain-Killer Metrics" >> $GITHUB_ENV
+        echo "" >> $GITHUB_ENV
+        echo "| Metric | Value | Target |" >> $GITHUB_ENV
+        echo "|--------|-------|--------|" >> $GITHUB_ENV
+        echo "| Mean Time to Debug | ${MTTD}s | <300s |" >> $GITHUB_ENV
+        echo "| Error Reduction | ${ERROR_REDUCTION}% | >40% |" >> $GITHUB_ENV
+        echo "| Team Adoption | ${TEAM_ADOPTION} teams | 5-10 teams |" >> $GITHUB_ENV
+        echo "| Setup Time | <2 min | <2 min |" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Update README with Metrics
+      run: |
+        # Update README with current metrics
+        sed -i '/<!-- DEBUGG_METRICS -->/,/<!-- \\/DEBUGG_METRICS -->/c\\
+        <!-- DEBUGG_METRICS -->\\
+        \\
+        ## 📊 Debugg Pain-Killer Metrics\\
+        \\
+        '${DEBUGG_METRICS}'\\
+        \\
+        <!-- \\/DEBUGG_METRICS -->' README.md
+
+    - name: Commit Metrics Update
+      run: |
+        git config --global user.name "Debugg Bot"
+        git config --global user.email "bot@debugg.example.com"
+        git add README.md
+        git commit -m "chore: update Debugg metrics [skip ci]"
+        git push
