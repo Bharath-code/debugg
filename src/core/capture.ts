@@ -5,9 +5,17 @@
 import { UniversalError, ErrorContext, ErrorSeverity } from '../types/error';
 import { classifyError } from '../utils/classify';
 
-// Generate unique error IDs
 const generateErrorId = (): string => {
-  return 'err_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  const array = new Uint8Array(8);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(array);
+  } else {
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  const hex = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'err_' + hex + '_' + Date.now();
 };
 
 // Detect the current platform

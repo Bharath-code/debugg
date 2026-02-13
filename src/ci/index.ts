@@ -35,22 +35,32 @@ export interface CIReport {
   }>;
 }
 
-export class CIIntgration {
+export class CIIntegration {
   private config: CIConfig;
   private analytics: ErrorAnalytics;
   private baselineErrorCount: number;
+  private ownAnalytics: boolean = true;
 
-  constructor(config: Partial<CIConfig> = {}) {
+  constructor(config: Partial<CIConfig> = {}, analytics?: ErrorAnalytics) {
     this.config = {
       maxCriticalErrors: config.maxCriticalErrors || 0,
       maxHighErrors: config.maxHighErrors || 5,
-      errorRateThreshold: config.errorRateThreshold || 0.1, // 10%
+      errorRateThreshold: config.errorRateThreshold || 0.1,
       baselineComparison: config.baselineComparison !== false,
       failOnRegression: config.failOnRegression !== false
     };
 
-    this.analytics = new ErrorAnalytics();
+    if (analytics) {
+      this.analytics = analytics;
+      this.ownAnalytics = false;
+    } else {
+      this.analytics = new ErrorAnalytics();
+    }
     this.baselineErrorCount = 0;
+  }
+
+  public getAnalytics(): ErrorAnalytics {
+    return this.analytics;
   }
 
   public setBaseline(errorCount: number): void {

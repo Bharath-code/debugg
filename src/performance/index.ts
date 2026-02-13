@@ -86,14 +86,7 @@ export class PerformanceMonitor {
     try {
       if (typeof process !== 'undefined' && process.cpuUsage) {
         const startUsage = process.cpuUsage();
-        // Simple CPU usage approximation
-        const now = Date.now();
-        while (Date.now() - now < 50) {} // Busy wait for 50ms
-        const endUsage = process.cpuUsage(startUsage);
-
-        const user = endUsage.user / 1000; // microseconds to milliseconds
-        const system = endUsage.system / 1000;
-        return (user + system) / 50; // Percentage over 50ms
+        return 0;
       }
       return 0;
     } catch (error) {

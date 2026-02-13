@@ -135,12 +135,34 @@ export const createWebhookReporter = (
   webhookUrl: string,
   options: WebhookReporterOptions = {}
 ): ErrorReporter => {
+  // Validate webhook URL
+  if (!webhookUrl || typeof webhookUrl !== 'string') {
+    throw new Error('Webhook URL is required and must be a string');
+  }
+
+  try {
+    const url = new URL(webhookUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Webhook URL must use http or https protocol');
+    }
+  } catch {
+    throw new Error('Invalid webhook URL format');
+  }
+
   const {
     headers = {},
     retries = 3,
     timeout = 5000,
     logFailures = true
   } = options;
+
+  // Validate options
+  if (retries < 0 || retries > 10) {
+    throw new Error('Retries must be between 0 and 10');
+  }
+  if (timeout < 100 || timeout > 60000) {
+    throw new Error('Timeout must be between 100ms and 60000ms');
+  }
 
   return async (error: UniversalError) => {
     // Serialize the error, handling circular references

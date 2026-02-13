@@ -4,10 +4,10 @@
  */
 
 import { ErrorHandler } from '../core/ErrorHandler';
-import { ErrorHandlerConfig, UniversalError, ErrorReporter } from '../types/error';
+import { ErrorHandlerConfig, UniversalError, ErrorReporter, ErrorContext, ErrorSeverity } from '../types/error';
 import { PerformanceMonitor } from '../performance';
 import { ErrorAnalytics } from '../analytics';
-import { CIIntgration } from '../ci';
+import { CIIntegration } from '../ci';
 
 export interface EnhancedErrorHandlerConfig extends ErrorHandlerConfig {
   performanceMonitoring?: boolean;
@@ -19,7 +19,7 @@ export interface EnhancedErrorHandlerConfig extends ErrorHandlerConfig {
 export class EnhancedErrorHandler extends ErrorHandler {
   private performanceMonitor: PerformanceMonitor;
   private analytics: ErrorAnalytics;
-  private ciIntegration: CIIntgration;
+  private ciIntegration: CIIntegration;
   private enhancedConfig: EnhancedErrorHandlerConfig;
 
   constructor(config: EnhancedErrorHandlerConfig = {}) {
@@ -39,14 +39,14 @@ export class EnhancedErrorHandler extends ErrorHandler {
     });
 
     this.analytics = new ErrorAnalytics();
-    this.ciIntegration = new CIIntgration();
+    this.ciIntegration = new CIIntegration({}, this.analytics);
   }
 
   // Override createError to add performance tracking and analytics
   public createError(
-    error: any,
-    context: any = {},
-    severity?: any
+    error: unknown,
+    context: ErrorContext = {},
+    severity?: ErrorSeverity
   ): UniversalError {
     // Start performance tracking
     const universalError = super.createError(error, context, severity);
@@ -70,7 +70,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
   }
 
   // Override handle to add performance tracking
-  public async handle(error: any, context: any = {}, severity?: any): Promise<void> {
+  public async handle(error: unknown, context: ErrorContext = {}, severity?: ErrorSeverity): Promise<void> {
     // Generate a tracking ID for performance monitoring
     const trackingId = `handle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -174,6 +174,31 @@ export class EnhancedErrorHandler extends ErrorHandler {
     return { ...this.enhancedConfig };
   }
 
+  private errorCounts: { baseline: number; current: number } = { baseline: 0, current: 0 };
+  private teamAdoptionCount: number = 0;
+
+  public trackTeamAdoption(): void {
+    this.teamAdoptionCount++;
+  }
+
+  public setBaselineErrorCount(count: number): void {
+    this.errorCounts.baseline = count;
+    this.errorCounts.current = count;
+  }
+
+  private calculateErrorReduction(): number {
+    if (this.errorCounts.baseline === 0) return 0;
+    const reduction = ((this.errorCounts.baseline - this.errorCounts.current) / this.errorCounts.baseline) * 100;
+    return Math.max(0, Math.round(reduction));
+  }
+
+  private calculateErrorDetectionRate(): number {
+    const total = this.analytics.getMetrics().totalErrors;
+    if (total === 0) return 0;
+    const resolved = this.analytics.getIncidentTimelines().filter(i => i.resolvedAt !== null).length;
+    return Math.round((resolved / total) * 100);
+  }
+
   // Investor-Ready Metrics
   public getInvestorMetrics(): {
     meanTimeToDebug: number | null;
@@ -181,28 +206,24 @@ export class EnhancedErrorHandler extends ErrorHandler {
     setupTime: string;
     teamAdoption: number;
     errorDetectionRate: number;
+    totalErrors: number;
+    resolvedErrors: number;
+    activeIncidents: number;
   } {
     const mttd = this.getMeanTimeToDebug();
+    const analytics = this.analytics.getMetrics();
+    const resolvedErrors = analytics.resolutionRate > 0 ? Math.floor(analytics.totalErrors * analytics.resolutionRate / 100) : 0;
 
     return {
       meanTimeToDebug: mttd,
       errorReduction: this.calculateErrorReduction(),
-      setupTime: '<2 minutes', // Our target
-      teamAdoption: this.getTeamAdoptionCount(),
-      errorDetectionRate: 95 // Our target percentage
+      setupTime: '<2 minutes',
+      teamAdoption: this.teamAdoptionCount,
+      errorDetectionRate: this.calculateErrorDetectionRate(),
+      totalErrors: analytics.totalErrors,
+      resolvedErrors,
+      activeIncidents: analytics.totalErrors - resolvedErrors
     };
-  }
-
-  private calculateErrorReduction(): number {
-    // This would compare current error rates with historical data
-    // For demo purposes, we'll return a realistic improvement
-    return 45; // 45% reduction
-  }
-
-  private getTeamAdoptionCount(): number {
-    // This would track actual team usage
-    // For demo purposes, we'll return our target
-    return 8; // Target: 5-10 teams
   }
 
   // Generate comprehensive report for investors
