@@ -3,8 +3,6 @@
  * Tracks error handling overhead and system performance impact
  */
 
-import { UniversalError } from '../types/error';
-
 export interface PerformanceMetrics {
   errorHandlingTime: number;
   memoryUsage: number;
@@ -27,8 +25,8 @@ export class PerformanceMonitor {
   constructor(config: Partial<PerformanceMonitorConfig> = {}) {
     this.config = {
       enabled: config.enabled !== false,
-      sampleRate: config.sampleRate || 1.0,
-      maxHistory: config.maxHistory || 1000
+      sampleRate: config.sampleRate ?? 1.0,
+      maxHistory: config.maxHistory ?? 1000,
     };
 
     this.metricsHistory = [];
@@ -56,7 +54,7 @@ export class PerformanceMonitor {
       memoryUsage: this.getMemoryUsage(),
       cpuUsage: this.getCPUUsage(),
       timestamp: new Date(),
-      errorId: errorId
+      errorId: errorId,
     };
 
     this.startTimes.delete(errorId);
@@ -77,7 +75,7 @@ export class PerformanceMonitor {
         return memory.heapUsed / 1024 / 1024; // MB
       }
       return 0;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -85,11 +83,10 @@ export class PerformanceMonitor {
   private getCPUUsage(): number {
     try {
       if (typeof process !== 'undefined' && process.cpuUsage) {
-        const startUsage = process.cpuUsage();
-        return 0;
+        process.cpuUsage();
       }
       return 0;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }

@@ -3,7 +3,7 @@
  * Provides hard metrics for investor presentations
  */
 
-import { UniversalError } from '../types/error';
+import { UniversalError } from '../types';
 
 export interface ErrorMetrics {
   totalErrors: number;
@@ -51,7 +51,7 @@ export class ErrorAnalytics {
       triagedAt: null,
       resolvedAt: null,
       resolutionTime: null,
-      assignedTo: null
+      assignedTo: null,
     };
 
     this.incidents.push(incident);
@@ -65,7 +65,7 @@ export class ErrorAnalytics {
     resolvedAt?: Date;
     assignedTo?: string;
   }): void {
-    const incident = this.incidents.find(i => i.errorId === errorId);
+    const incident = this.incidents.find((i) => i.errorId === errorId);
     if (!incident) return;
 
     if (status.triagedAt) incident.triagedAt = status.triagedAt;
@@ -85,7 +85,7 @@ export class ErrorAnalytics {
         meanTimeToResolve: null,
         resolutionRate: 0,
         firstOccurrence: null,
-        lastOccurrence: null
+        lastOccurrence: null,
       };
     }
 
@@ -93,13 +93,13 @@ export class ErrorAnalytics {
     const errorsBySeverity: Record<string, number> = {};
     const errorsByType: Record<string, number> = {};
 
-    this.errors.forEach(error => {
+    this.errors.forEach((error) => {
       errorsBySeverity[error.severity] = (errorsBySeverity[error.severity] || 0) + 1;
       errorsByType[error.name] = (errorsByType[error.name] || 0) + 1;
     });
 
     // Calculate resolution metrics
-    const resolvedIncidents = this.incidents.filter(i => i.resolvedAt !== null);
+    const resolvedIncidents = this.incidents.filter((i) => i.resolvedAt !== null);
     const resolutionRate = this.incidents.length > 0
       ? (resolvedIncidents.length / this.incidents.length) * 100
       : 0;
@@ -114,8 +114,8 @@ export class ErrorAnalytics {
       errorsByType,
       meanTimeToResolve: meanTimeToResolve ? meanTimeToResolve / 1000 : null, // Convert to seconds
       resolutionRate,
-      firstOccurrence: this.errors[0]?.timestamp || null,
-      lastOccurrence: this.errors[this.errors.length - 1]?.timestamp || null
+      firstOccurrence: this.errors[0]?.timestamp ?? null,
+      lastOccurrence: this.errors[this.errors.length - 1]?.timestamp ?? null,
     };
   }
 
@@ -131,9 +131,11 @@ export class ErrorAnalytics {
   public getErrorTrends(): { date: string; count: number }[] {
     const trends: Record<string, number> = {};
 
-    this.errors.forEach(error => {
+    this.errors.forEach((error) => {
       const date = error.timestamp.toISOString().split('T')[0];
-      trends[date] = (trends[date] || 0) + 1;
+      if (date) {
+        trends[date] = (trends[date] || 0) + 1;
+      }
     });
 
     return Object.entries(trends)
@@ -141,14 +143,14 @@ export class ErrorAnalytics {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  public getTopErrors(limit: number = 5): Array<{
+  public getTopErrors(limit = 5): Array<{
     errorType: string;
     count: number;
     severity: string;
   }> {
     const errorCounts: Record<string, { count: number; severity: string }> = {};
 
-    this.errors.forEach(error => {
+    this.errors.forEach((error) => {
       const key = `${error.name}-${error.message}`;
       if (!errorCounts[key]) {
         errorCounts[key] = { count: 0, severity: error.severity };
@@ -160,7 +162,7 @@ export class ErrorAnalytics {
       .map(([errorType, data]) => ({
         errorType,
         count: data.count,
-        severity: data.severity
+        severity: data.severity,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);

@@ -3,37 +3,49 @@
  * Automatically determines error severity based on error type and characteristics
  */
 
-import { ErrorSeverity } from '../types/error';
+import { ErrorSeverity } from '../types';
 
 /**
  * Classify an error and determine its severity level
  * @param error - The error to classify
  * @returns ErrorSeverity level
  */
-export const classifyError = (error: any): ErrorSeverity => {
+export const classifyError = (error: unknown): ErrorSeverity => {
   // Native JavaScript error types
   if (error instanceof TypeError) return 'high';
   if (error instanceof ReferenceError) return 'high';
   if (error instanceof SyntaxError) return 'critical';
   if (error instanceof RangeError) return 'medium';
 
-  // Network-related errors
-  if (error && error.message && error.message.includes('NetworkError')) return 'high';
-  if (error && error.code && error.code === 'ECONNREFUSED') return 'high';
-  if (error && error.code && error.code === 'ETIMEDOUT') return 'high';
+  // Check for error-like objects
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
 
-  // HTTP status codes
-  if (error && error.status && error.status >= 500) return 'critical';
-  if (error && error.status && error.status >= 400 && error.status < 500) return 'medium';
+    // Network-related errors
+    if (typeof err.message === 'string' && err.message.includes('NetworkError')) return 'high';
+    if (typeof err.code === 'string' && err.code === 'ECONNREFUSED') return 'high';
+    if (typeof err.code === 'string' && err.code === 'ETIMEDOUT') return 'high';
 
-  // Database and storage errors
-  if (error && error.code && error.code.includes('SQLITE_')) return 'high';
-  if (error && error.code && error.code.includes('ECONNRESET')) return 'high';
+    // HTTP status codes
+    if (typeof err.status === 'number') {
+      if (err.status >= 500) return 'critical';
+      if (err.status >= 400 && err.status < 500) return 'medium';
+    }
 
-  // Security-related errors
-  if (error && error.message && error.message.includes('authentication')) return 'high';
-  if (error && error.message && error.message.includes('authorization')) return 'high';
-  if (error && error.message && error.message.includes('permission')) return 'high';
+    // Database and storage errors
+    if (typeof err.code === 'string') {
+      if (err.code.includes('SQLITE_')) return 'high';
+      if (err.code.includes('ECONNRESET')) return 'high';
+    }
+
+    // Security-related errors
+    if (typeof err.message === 'string') {
+      const message = err.message.toLowerCase();
+      if (message.includes('authentication')) return 'high';
+      if (message.includes('authorization')) return 'high';
+      if (message.includes('permission')) return 'high';
+    }
+  }
 
   // Default severity for unknown errors
   return 'medium';
@@ -44,28 +56,31 @@ export const classifyError = (error: any): ErrorSeverity => {
  * @param error - The error to analyze
  * @returns Object with classification details
  */
-export const getErrorClassification = (error: any) => {
+export const getErrorClassification = (error: unknown) => {
   const severity = classifyError(error);
+  const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : 'Error';
 
   return {
     severity,
-    type: error.name || 'Error',
+    type: name,
     isCritical: severity === 'critical',
     isHighPriority: ['critical', 'high'].includes(severity),
-    description: getErrorDescription(error, severity)
+    description: getErrorDescription(severity),
   };
 };
 
 /**
  * Get human-readable description for error classification
+ * @param severity - The severity level
+ * @returns Human-readable description
  */
-const getErrorDescription = (error: any, severity: ErrorSeverity): string => {
-  const descriptions: Record<string, string> = {
+const getErrorDescription = (severity: ErrorSeverity): string => {
+  const descriptions: Record<ErrorSeverity, string> = {
     critical: 'Critical error that requires immediate attention',
     high: 'High severity error that should be addressed promptly',
     medium: 'Medium severity error that needs investigation',
     low: 'Low severity error that can be addressed later',
-    info: 'Informational message or non-critical issue'
+    info: 'Informational message or non-critical issue',
   };
 
   return descriptions[severity] || descriptions.medium;

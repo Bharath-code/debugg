@@ -4,10 +4,12 @@
  */
 
 import { ErrorHandler } from '../core/ErrorHandler';
-import { ErrorHandlerConfig, UniversalError, ErrorReporter, ErrorContext, ErrorSeverity } from '../types/error';
+import type { ErrorHandlerConfig, UniversalError, ErrorContext, ErrorSeverity } from '../types';
+import type { HandleResult } from '../core/ErrorHandler';
 import { PerformanceMonitor } from '../performance';
 import { ErrorAnalytics } from '../analytics';
 import { CIIntegration } from '../ci';
+import { DEFAULTS } from '../constants/defaults';
 
 export interface EnhancedErrorHandlerConfig extends ErrorHandlerConfig {
   performanceMonitoring?: boolean;
@@ -20,30 +22,41 @@ export class EnhancedErrorHandler extends ErrorHandler {
   private performanceMonitor: PerformanceMonitor;
   private analytics: ErrorAnalytics;
   private ciIntegration: CIIntegration;
-  private enhancedConfig: EnhancedErrorHandlerConfig;
+  private enhancedConfig: Required<EnhancedErrorHandlerConfig>;
+  private errorCounts: { baseline: number; current: number };
+  private teamAdoptionCount: number;
 
   constructor(config: EnhancedErrorHandlerConfig = {}) {
     super(config);
 
     this.enhancedConfig = {
-      performanceMonitoring: config.performanceMonitoring !== false,
-      analytics: config.analytics !== false,
-      ciIntegration: config.ciIntegration !== false,
-      autoTrackErrors: config.autoTrackErrors !== false,
-      ...config
+      performanceMonitoring: config.performanceMonitoring ?? true,
+      analytics: config.analytics ?? true,
+      ciIntegration: config.ciIntegration ?? true,
+      autoTrackErrors: config.autoTrackErrors ?? true,
+      serviceName: config.serviceName ?? DEFAULTS.SERVICE_NAME,
+      environment: config.environment ?? DEFAULTS.ENVIRONMENT,
+      defaultSeverity: config.defaultSeverity ?? DEFAULTS.DEFAULT_SEVERITY,
+      reporters: config.reporters ?? [],
+      logToConsole: config.logToConsole ?? true,
+      includeStackTrace: config.includeStackTrace ?? true,
+      maxContextDepth: config.maxContextDepth ?? DEFAULTS.MAX_CONTEXT_DEPTH,
     };
 
     // Initialize enhanced features
     this.performanceMonitor = new PerformanceMonitor({
-      enabled: this.enhancedConfig.performanceMonitoring
+      enabled: this.enhancedConfig.performanceMonitoring,
     });
 
     this.analytics = new ErrorAnalytics();
     this.ciIntegration = new CIIntegration({}, this.analytics);
+
+    this.errorCounts = { baseline: 0, current: 0 };
+    this.teamAdoptionCount = 0;
   }
 
   // Override createError to add performance tracking and analytics
-  public createError(
+  public override createError(
     error: unknown,
     context: ErrorContext = {},
     severity?: ErrorSeverity
@@ -70,9 +83,9 @@ export class EnhancedErrorHandler extends ErrorHandler {
   }
 
   // Override handle to add performance tracking
-  public async handle(error: unknown, context: ErrorContext = {}, severity?: ErrorSeverity): Promise<void> {
+  public override async handle(error: unknown, context: ErrorContext = {}, severity?: ErrorSeverity): Promise<HandleResult> {
     // Generate a tracking ID for performance monitoring
-    const trackingId = `handle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const trackingId = `handle_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     try {
       // Start performance tracking for the entire handling process
@@ -81,12 +94,14 @@ export class EnhancedErrorHandler extends ErrorHandler {
       }
 
       // Call parent handle method (which calls createError internally)
-      await super.handle(error, context, severity);
+      const result = await super.handle(error, context, severity);
 
       // End performance tracking
       if (this.enhancedConfig.performanceMonitoring) {
         this.performanceMonitor.endTracking(trackingId);
       }
+
+      return result;
     } catch (handleError) {
       console.error('Error handling failed:', handleError);
       if (this.enhancedConfig.performanceMonitoring) {
@@ -97,7 +112,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
   }
 
   // Performance Monitoring Methods
-  public getPerformanceMetrics(): any {
+  public getPerformanceMetrics(): PerformanceMetrics[] {
     return this.performanceMonitor.getMetrics();
   }
 
@@ -106,7 +121,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
   }
 
   // Analytics Methods
-  public getErrorMetrics(): any {
+  public getErrorMetrics(): ErrorMetrics {
     return this.analytics.getMetrics();
   }
 
@@ -114,23 +129,30 @@ export class EnhancedErrorHandler extends ErrorHandler {
     return this.analytics.getMeanTimeToDebug();
   }
 
-  public getIncidentTimelines(): any {
+  public getIncidentTimelines(): IncidentTimeline[] {
     return this.analytics.getIncidentTimelines();
   }
 
-  public getErrorTrends(): any {
+  public getErrorTrends(): { date: string; count: number }[] {
     return this.analytics.getErrorTrends();
   }
 
-  public getTopErrors(limit: number = 5): any {
+  public getTopErrors(limit = 5): Array<{
+    errorType: string;
+    count: number;
+    severity: string;
+  }> {
     return this.analytics.getTopErrors(limit);
   }
 
-  public updateIncidentStatus(errorId: string, status: {
-    triagedAt?: Date;
-    resolvedAt?: Date;
-    assignedTo?: string;
-  }): void {
+  public updateIncidentStatus(
+    errorId: string,
+    status: {
+      triagedAt?: Date;
+      resolvedAt?: Date;
+      assignedTo?: string;
+    }
+  ): void {
     this.analytics.updateIncidentStatus(errorId, status);
   }
 
@@ -141,13 +163,13 @@ export class EnhancedErrorHandler extends ErrorHandler {
 
   public async runCIQualityGates(): Promise<{
     passed: boolean;
-    report: any;
+    report: CIReport;
     message: string;
   }> {
     return this.ciIntegration.runQualityGates();
   }
 
-  public getCIReport(): any {
+  public getCIReport(): CIReport {
     return this.ciIntegration.generateReport();
   }
 
@@ -164,19 +186,15 @@ export class EnhancedErrorHandler extends ErrorHandler {
 
     // Update performance monitor
     this.performanceMonitor = new PerformanceMonitor({
-      enabled: this.enhancedConfig.performanceMonitoring
+      enabled: this.enhancedConfig.performanceMonitoring,
     });
-
-    // Note: Analytics and CI integration are always enabled if configured
   }
 
   public getEnhancedConfig(): EnhancedErrorHandlerConfig {
     return { ...this.enhancedConfig };
   }
 
-  private errorCounts: { baseline: number; current: number } = { baseline: 0, current: 0 };
-  private teamAdoptionCount: number = 0;
-
+  // Team Adoption Tracking
   public trackTeamAdoption(): void {
     this.teamAdoptionCount++;
   }
@@ -195,7 +213,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
   private calculateErrorDetectionRate(): number {
     const total = this.analytics.getMetrics().totalErrors;
     if (total === 0) return 0;
-    const resolved = this.analytics.getIncidentTimelines().filter(i => i.resolvedAt !== null).length;
+    const resolved = this.analytics.getIncidentTimelines().filter((i) => i.resolvedAt !== null).length;
     return Math.round((resolved / total) * 100);
   }
 
@@ -212,7 +230,8 @@ export class EnhancedErrorHandler extends ErrorHandler {
   } {
     const mttd = this.getMeanTimeToDebug();
     const analytics = this.analytics.getMetrics();
-    const resolvedErrors = analytics.resolutionRate > 0 ? Math.floor(analytics.totalErrors * analytics.resolutionRate / 100) : 0;
+    const resolvedErrors =
+      analytics.resolutionRate > 0 ? Math.floor((analytics.totalErrors * analytics.resolutionRate) / 100) : 0;
 
     return {
       meanTimeToDebug: mttd,
@@ -222,7 +241,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
       errorDetectionRate: this.calculateErrorDetectionRate(),
       totalErrors: analytics.totalErrors,
       resolvedErrors,
-      activeIncidents: analytics.totalErrors - resolvedErrors
+      activeIncidents: analytics.totalErrors - resolvedErrors,
     };
   }
 
@@ -235,7 +254,7 @@ export class EnhancedErrorHandler extends ErrorHandler {
     report += '============================================\n\n';
 
     report += '📊 KEY METRICS (Investor Focus)\n';
-    report += `✅ Mean Time to Debug: ${metrics.meanTimeToDebug || 'N/A'} seconds (Target: <300s)\n`;
+    report += `✅ Mean Time to Debug: ${metrics.meanTimeToDebug ?? 'N/A'} seconds (Target: <300s)\n`;
     report += `✅ Error Reduction: ${metrics.errorReduction}% improvement\n`;
     report += `✅ Setup Time: ${metrics.setupTime} (Target: <2 minutes)\n`;
     report += `✅ Team Adoption: ${metrics.teamAdoption} teams (Target: 5-10)\n`;
@@ -243,11 +262,11 @@ export class EnhancedErrorHandler extends ErrorHandler {
 
     report += '🔍 ERROR ANALYTICS\n';
     report += `📈 Total Errors Tracked: ${errorMetrics.totalErrors}\n`;
-    report += `🎯 Critical Errors: ${errorMetrics.errorsBySeverity['critical'] || 0}\n`;
-    report += `⚠️  High Severity: ${errorMetrics.errorsBySeverity['high'] || 0}\n`;
-    report += `ℹ️  Medium Severity: ${errorMetrics.errorsBySeverity['medium'] || 0}\n`;
+    report += `🎯 Critical Errors: ${errorMetrics.errorsBySeverity['critical'] ?? 0}\n`;
+    report += `⚠️  High Severity: ${errorMetrics.errorsBySeverity['high'] ?? 0}\n`;
+    report += `ℹ️  Medium Severity: ${errorMetrics.errorsBySeverity['medium'] ?? 0}\n`;
     report += `📊 Resolution Rate: ${errorMetrics.resolutionRate.toFixed(1)}%\n`;
-    report += `⏱️  Mean Time to Resolve: ${errorMetrics.meanTimeToResolve || 'N/A'} seconds\n\n`;
+    report += `⏱️  Mean Time to Resolve: ${errorMetrics.meanTimeToResolve ?? 'N/A'} seconds\n\n`;
 
     report += '💰 BUSINESS IMPACT\n';
     report += '• Developer Productivity: 30-50% improvement in debugging time\n';
@@ -265,3 +284,9 @@ export class EnhancedErrorHandler extends ErrorHandler {
     return report;
   }
 }
+
+// Type exports for better DX
+type PerformanceMetrics = import('../performance').PerformanceMetrics;
+type ErrorMetrics = import('../analytics').ErrorMetrics;
+type IncidentTimeline = import('../analytics').IncidentTimeline;
+type CIReport = import('../ci').CIReport;

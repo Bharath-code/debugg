@@ -3,8 +3,9 @@
  * Provides build quality gates and error baseline tracking
  */
 
-import { UniversalError } from '../types/error';
+import { UniversalError } from '../types';
 import { ErrorAnalytics } from '../analytics';
+import { DEFAULTS } from '../constants/defaults';
 
 export interface CIConfig {
   maxCriticalErrors: number;
@@ -39,23 +40,17 @@ export class CIIntegration {
   private config: CIConfig;
   private analytics: ErrorAnalytics;
   private baselineErrorCount: number;
-  private ownAnalytics: boolean = true;
 
   constructor(config: Partial<CIConfig> = {}, analytics?: ErrorAnalytics) {
     this.config = {
-      maxCriticalErrors: config.maxCriticalErrors || 0,
-      maxHighErrors: config.maxHighErrors || 5,
-      errorRateThreshold: config.errorRateThreshold || 0.1,
-      baselineComparison: config.baselineComparison !== false,
-      failOnRegression: config.failOnRegression !== false
+      maxCriticalErrors: config.maxCriticalErrors ?? DEFAULTS.MAX_CRITICAL_ERRORS,
+      maxHighErrors: config.maxHighErrors ?? DEFAULTS.MAX_HIGH_ERRORS,
+      errorRateThreshold: config.errorRateThreshold ?? DEFAULTS.ERROR_RATE_THRESHOLD,
+      baselineComparison: config.baselineComparison ?? true,
+      failOnRegression: config.failOnRegression ?? true,
     };
 
-    if (analytics) {
-      this.analytics = analytics;
-      this.ownAnalytics = false;
-    } else {
-      this.analytics = new ErrorAnalytics();
-    }
+    this.analytics = analytics ?? new ErrorAnalytics();
     this.baselineErrorCount = 0;
   }
 
@@ -75,12 +70,12 @@ export class CIIntegration {
     const metrics = this.analytics.getMetrics();
     const incidents = this.analytics.getIncidentTimelines();
 
-    const criticalCount = metrics.errorsBySeverity['critical'] || 0;
-    const highCount = metrics.errorsBySeverity['high'] || 0;
+    const criticalCount = metrics.errorsBySeverity['critical'] ?? 0;
+    const highCount = metrics.errorsBySeverity['high'] ?? 0;
     const totalErrors = metrics.totalErrors;
 
     // Calculate error rate (errors per 1000 operations - simulated)
-    const errorRate = totalErrors / 1000; // Simplified calculation
+    const errorRate = totalErrors / 1000;
 
     // Check for regression
     let regressionDetected = false;
@@ -96,11 +91,11 @@ export class CIIntegration {
         current: totalErrors,
         baseline: this.baselineErrorCount,
         change,
-        percentageChange
+        percentageChange,
       };
 
       // Consider regression if error count increased by 20% or more
-      regressionDetected = percentageChange > 20;
+      regressionDetected = percentageChange > DEFAULTS.REGRESSION_THRESHOLD_PERCENT;
     }
 
     // Determine success based on thresholds
@@ -112,12 +107,15 @@ export class CIIntegration {
     const success = !(criticalExceeded || highExceeded || rateExceeded || regressionFailed);
 
     // Get recent errors for report
-    const recentErrors = incidents.slice(-10).map(incident => ({
-      errorId: incident.errorId,
-      severity: this.findErrorById(incident.errorId)?.severity || 'unknown',
-      message: this.findErrorById(incident.errorId)?.message || 'Unknown error',
-      timestamp: incident.occurredAt
-    }));
+    const recentErrors = incidents.slice(-10).map((incident) => {
+      const error = this.findErrorById(incident.errorId);
+      return {
+        errorId: incident.errorId,
+        severity: error?.severity ?? 'unknown',
+        message: error?.message ?? 'Unknown error',
+        timestamp: incident.occurredAt,
+      };
+    });
 
     return {
       success,
@@ -127,14 +125,13 @@ export class CIIntegration {
       errorRate,
       regressionDetected,
       baselineComparison,
-      errors: recentErrors
+      errors: recentErrors,
     };
   }
 
   private findErrorById(errorId: string): UniversalError | undefined {
-    // This would be more efficient with a proper index, but for simplicity:
-    const allErrors = this.analytics['errors'] as UniversalError[];
-    return allErrors.find(error => error.errorId === errorId);
+    const allErrors = (this.analytics as unknown as { errors: UniversalError[] }).errors;
+    return allErrors.find((error) => error.errorId === errorId);
   }
 
   public getQualityGateStatus(): {
@@ -142,7 +139,7 @@ export class CIIntegration {
     reasons: string[];
   } {
     const report = this.generateReport();
-    const reasons = [];
+    const reasons: string[] = [];
 
     if (report.criticalCount > this.config.maxCriticalErrors) {
       reasons.push(`Critical errors exceeded: ${report.criticalCount}/${this.config.maxCriticalErrors}`);
@@ -162,7 +159,7 @@ export class CIIntegration {
 
     return {
       passed: report.success,
-      reasons
+      reasons,
     };
   }
 
@@ -187,13 +184,13 @@ export class CIIntegration {
 
     if (!gateStatus.passed) {
       message += '\n🚨 Quality Gates Failed:\n';
-      gateStatus.reasons.forEach(reason => {
+      gateStatus.reasons.forEach((reason) => {
         message += `  • ${reason}\n`;
       });
 
       if (report.errors.length > 0) {
         message += '\n📋 Recent Errors:\n';
-        report.errors.forEach(error => {
+        report.errors.forEach((error) => {
           message += `  • [${error.severity}] ${error.message} (${error.errorId})\n`;
         });
       }
@@ -202,7 +199,7 @@ export class CIIntegration {
     return {
       passed: gateStatus.passed,
       report,
-      message
+      message,
     };
   }
 }
