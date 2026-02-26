@@ -1,0 +1,58 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/api",
+  "name": "Debugg API Documentation",
+  "includeVersion": true,
+  "readme": "README.md",
+  "theme": "default",
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Core",
+    "Reporters",
+    "Storage",
+    "Utilities",
+    "Types",
+    "Enhanced",
+    "Performance",
+    "Analytics",
+    "CI",
+    "Middleware",
+    "*"
+  ],
+  "navigationLinks": {
+    "GitHub": "https://github.com/your-org/debugg",
+    "NPM": "https://www.npmjs.com/package/debugg"
+  },
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "external": true
+  },
+  "kindSortOrder": [
+    "Module",
+    "Namespace",
+    "Enum",
+    "Variable",
+    "Function",
+    "Class",
+    "Interface",
+    "Constructor",
+    "Property",
+    "Method",
+    "CallSignature",
+    "IndexSignature",
+    "ConstructorSignature",
+    "Parameter",
+    "TypeLiteral",
+    "TypeParameter",
+    "Accessor",
+    "GetSignature",
+    "SetSignature",
+    "TypeAlias",
+    "Reference"
+  ]
+}

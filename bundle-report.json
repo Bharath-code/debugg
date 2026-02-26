@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-02-26T16:57:06.253Z",
+  "bundles": [
+    {
+      "name": "CommonJS Bundle",
+      "path": "index.js",
+      "size": 74728,
+      "gzip": 0,
+      "sizeFormatted": "72.98 KB",
+      "gzipFormatted": "0 Bytes"
+    },
+    {
+      "name": "ESM Bundle",
+      "path": "index.mjs",
+      "size": 73659,
+      "gzip": 0,
+      "sizeFormatted": "71.93 KB",
+      "gzipFormatted": "0 Bytes"
+    },
+    {
+      "name": "TypeScript Definitions",
+      "path": "index.d.ts",
+      "size": 1542,
+      "gzip": 0,
+      "sizeFormatted": "1.51 KB",
+      "gzipFormatted": "0 Bytes"
+    }
+  ],
+  "summary": {
+    "totalSize": 149929,
+    "totalGzipSize": 0,
+    "compressionRatio": 100
+  },
+  "thresholds": {
+    "passed": true,
+    "limits": {
+      "js": 102400,
+      "mjs": 81920,
+      "dts": 51200
+    }
+  }
+}

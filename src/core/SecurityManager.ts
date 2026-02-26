@@ -195,26 +195,25 @@ export class SecurityManager {
     }
 
     // Recursively truncate until within limit
-    return this.truncateContextRecursive(context, this.config.maxContextSize);
+    return this.truncateContextRecursive({ ...context }, this.config.maxContextSize, 0);
   }
 
   /**
    * Recursively truncate context
    */
-  private truncateContextRecursive(context: ErrorContext, maxSize: number, depth = 0): ErrorContext {
+  private truncateContextRecursive(context: ErrorContext, maxSize: number, depth: number): ErrorContext {
     if (depth > 10) {
       return { _truncated: true, _reason: 'max_depth_exceeded' };
     }
 
-    const current = this.truncateContextRecursive(context, maxSize);
-    const validation = this.validateContextSize(current);
+    const validation = this.validateContextSize(context);
 
     if (validation.valid) {
-      return current;
+      return context;
     }
 
     // Remove least important fields
-    const truncated = { ...current };
+    const truncated = { ...context };
     const keys = Object.keys(truncated);
 
     if (keys.length > 0) {

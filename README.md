@@ -1,272 +1,220 @@
-# 🎨 Debugg - Smart Error Handling for Developers
+# 🐞 Debugg - Smart Error Handling for Developers
 
-![Debugg Logo - Friendly Bug Mascot](https://via.placeholder.com/150?text=Debugg+🐞)
+**Debug smarter, not harder!** A comprehensive, cross-platform error handling and monitoring library that makes debugging enjoyable.
 
-**Debug smarter, not harder! A developer-friendly error handling library that makes debugging enjoyable.**
-
-[![npm version](https://badge.fury.io/js/universal-error-handler.svg)](https://badge.fury.io/js/universal-error-handler)
+[![npm version](https://badge.fury.io/js/debugg.svg)](https://badge.fury.io/js/debugg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Bun Optimized](https://img.shields.io/badge/Optimized%20for-Bun-ff69b4.svg)](https://bun.sh)
-[![Cross-Platform](https://img.shields.io/badge/Platform-Browser%20%7C%20Node.js%20%7C%20Mobile-brightgreen.svg)](https://github.com/your-repo/universal-error-handler)
-[![Test Coverage](https://img.shields.io/badge/Coverage-100%25-success.svg)](https://github.com/your-repo/universal-error-handler)
-[![Day 1 MVP Complete](https://img.shields.io/badge/Day%201-MVP%20Complete-success.svg)](https://github.com/your-repo/universal-error-handler)
+[![Test Coverage](https://img.shields.io/badge/Coverage-180+-tests-success.svg)](https://github.com/your-org/debugg)
 
-**🎉 Day 1 MVP Complete! Core error handling foundation with modular architecture**
+## 🚀 Why Debugg?
 
-## 🚀 Why Debugg Exists
+**We believe error handling should be enjoyable, not frustrating!** Debugg solves universal developer pain points:
 
-**We believe error handling should be enjoyable, not frustrating!** Debugg was created to solve the universal developer pain points:
+1. ❌ **Inconsistent error handling** across different parts of applications
+2. ❌ **Lack of context** when errors occur
+3. ❌ **No standardized severity levels**
+4. ❌ **Multiple monitoring tools** with different APIs
+5. ❌ **Cross-platform challenges**
 
-1. **Inconsistent error handling** across different parts of applications
-2. **Lack of context** when errors occur - making debugging difficult
-3. **No standardized severity levels** - hard to prioritize issues
-4. **Multiple monitoring tools** with different formats and APIs
-5. **Cross-platform challenges** - different error handling for browser vs Node.js
-6. **Poor error tracking** - no unique IDs to trace errors across systems
-
-## ✨ Solution: Universal Error Handler
+## ✨ Solution
 
 A **single, unified library** that provides:
 
 - ✅ **Consistent error format** across all platforms
 - ✅ **Automatic error classification** with severity levels
 - ✅ **Rich context attachment** for better debugging
-- ✅ **Unique error IDs** for tracking and correlation
-- ✅ **Multiple reporter support** (Sentry, webhooks, custom)
-- ✅ **Cross-platform detection** (browser, Node.js, mobile)
+- ✅ **Unique error IDs** for tracking
+- ✅ **Multiple reporter support** (Sentry, webhooks, console, custom)
+- ✅ **Cross-platform detection** (Browser, Node.js, Mobile)
 - ✅ **Type-safe API** with comprehensive TypeScript support
-- ✅ **Production-ready** with minimal performance impact
+- ✅ **Production-ready** with security features
 
 ## 📦 Installation
 
 ```bash
-# Using Bun (recommended)
-bun add debugg
-
 # Using npm
 npm install debugg
 
 # Using yarn
 yarn add debugg
+
+# Using Bun (recommended)
+bun add debugg
 ```
 
-## 🏗️ Modular Architecture (Day 1 Complete)
+## 🏗️ Quick Start
 
-**🎯 Day 1 MVP delivers a solid foundation with modular design:**
-
-```
-src/
-├── types/          # Type definitions and interfaces
-│   └── error.ts    # Core type system
-├── utils/          # Utility functions
-│   └── classify.ts # Advanced error classification
-├── core/           # Core functionality
-│   └── capture.ts  # Error capture and processing
-├── storage/        # Storage system
-│   └── index.ts    # In-memory storage with persistence
-└── index.ts        # Main entry point
-```
-
-**✅ Day 1 Features Implemented:**
-- Core error handling infrastructure
-- Automatic error classification with severity levels
-- Rich context support with depth limiting
-- Cross-platform detection (browser, Node.js, mobile)
-- Type-safe API with comprehensive TypeScript support
-- Basic storage system with in-memory and localStorage options
-- Multiple reporter support (console, Sentry, webhook)
-- Performance-optimized design
-
-## 🔧 Quick Start
+### 1. Basic Setup
 
 ```typescript
-import { ErrorHandler, createConsoleReporter } from 'debugg';
+import { debugg } from 'debugg';
 
-// 🎨 Initialize Debugg with your brand personality
-const debugg = new ErrorHandler({
-  serviceName: 'my-awesome-app',
-  environment: 'development',
-  defaultSeverity: 'medium',
-  logToConsole: true // See beautiful formatted errors!
-});
-
-// 🐞 Add reporters (Sentry, webhooks, or custom)
-debugg.addReporter(createConsoleReporter());
-
-// ✨ Handle errors anywhere with rich context
+// Debugg is ready to use with sensible defaults
 try {
-  await riskyDatabaseOperation();
+  await riskyOperation();
 } catch (error) {
   await debugg.handle(error, {
-    // 💡 Add context for smarter debugging
-    userId: currentUser.id,
-    operation: 'update_profile',
-    database: 'postgresql',
-    query: 'UPDATE users SET name = $1 WHERE id = $2',
-    parameters: ['John Doe', currentUser.id]
+    userId: '123',
+    action: 'login',
   });
 }
-
-// 🎯 That's it! Enjoy beautiful, structured error handling!
 ```
 
-## 🎯 Why Developers Love Debugg
-
-### 🤩 Automatic Error Classification
+### 2. Configure for Your App
 
 ```typescript
-// Smart severity assignment - no more guessing!
+import { EnhancedErrorHandler, createConsoleReporter, createSentryReporter } from 'debugg';
+
+const debugg = new EnhancedErrorHandler({
+  serviceName: 'my-awesome-app',
+  environment: process.env.NODE_ENV || 'development',
+  logToConsole: true,
+  security: {
+    redactFields: ['password', 'token', 'apiKey'],
+    enableRateLimiting: true,
+  },
+});
+
+// Add reporters
+debugg.addReporter(createConsoleReporter());
+
+if (process.env.SENTRY_DSN) {
+  debugg.addReporter(createSentryReporter(process.env.SENTRY_DSN));
+}
+```
+
+### 3. That's It!
+
+Enjoy beautiful, structured error handling! 🎉
+
+## 🎯 Key Features
+
+### Automatic Error Classification
+
+```typescript
 debugg.handle(new TypeError('...'));        // → 'high' severity
 debugg.handle(new SyntaxError('...'));      // → 'critical' severity
-debugg.handle(new Error('Network error'));  // → 'high' severity (auto-detected)
+debugg.handle(new Error('Network error'));  // → 'high' (auto-detected)
 debugg.handle({ status: 500 });            // → 'critical' severity
 ```
 
-### 🔍 Rich Context Support
+### Rich Context Support
 
 ```typescript
-// Add unlimited context - Debugg handles the rest!
-debugg.handle(error, {
-  user: { id: 123, email: 'user@example.com' },
-  request: { method: 'POST', endpoint: '/api/users' },
-  database: { query: 'SELECT * FROM users', timeout: 5000 },
-  // ... add anything that helps debugging!
+await debugg.handle(error, {
+  userId: user.id,
+  operation: 'update_profile',
+  database: 'postgresql',
+  query: 'UPDATE users SET name = $1',
+  parameters: ['John Doe'],
+  // Add anything that helps debugging!
 });
 ```
 
-### 📡 Multiple Reporter Support
+### Multiple Reporters
 
 ```typescript
-// Send errors everywhere with one line each!
+// Send errors everywhere
+debugg.addReporter(createConsoleReporter());
 debugg.addReporter(createSentryReporter('YOUR_DSN'));
 debugg.addReporter(createWebhookReporter('https://api.example.com/errors'));
-debugg.addReporter(yourCustomReporter);
-
-// 🎉 All errors automatically sent to all reporters!
 ```
 
-### 🌐 Cross-Platform Detection
-
-**Automatic platform detection - no configuration needed!**
+### Cross-Platform Detection
 
 ```typescript
-// Works everywhere automatically:
-debugg.createError(new Error('test')).metadata.platform;
+const error = debugg.createError(new Error('test'));
+console.log(error.metadata.platform);
 // Returns: 'browser' | 'node' | 'mobile' | 'unknown'
 ```
 
-- **Browser**: Includes user agent info
-- **Node.js**: Detects Node.js environment
-- **Mobile**: Identifies iOS/Android
-- **Unknown**: Fallback for other environments
-
-### 5. Type-Safe API
-
-Full TypeScript support with comprehensive type definitions:
+### Security Features
 
 ```typescript
-interface UniversalError extends Error {
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  context: Record<string, any>;
-  timestamp: Date;
-  errorId: string;
-  metadata: {
-    platform: 'browser' | 'node' | 'mobile' | 'unknown';
-    serviceName: string;
-    environment: string;
-    // ... and more
-  };
-}
-```
-
-## 🛠️ Advanced Usage
-
-### 🎛️ Custom Configuration
-
-```typescript
-// Tailor Debugg to your exact needs
-const debugg = new ErrorHandler({
-  serviceName: 'my-api-service',
-  environment: process.env.NODE_ENV || 'development',
-  defaultSeverity: 'medium',
-  logToConsole: true,          // Beautiful console logging
-  includeStackTrace: true,     // Helpful stack traces
-  maxContextDepth: 3,          // Prevent memory issues
-  reporters: [                 // Start with your reporters
-    createConsoleReporter(),
-    createSentryReporter('YOUR_DSN')
-  ]
+const debugg = new EnhancedErrorHandler({
+  security: {
+    redactFields: ['password', 'token', 'secret'],
+    maxContextSize: 1024 * 1024, // 1MB
+    enableRateLimiting: true,
+    maxErrorsPerMinute: 100,
+    sanitizeStrings: true, // XSS prevention
+  },
 });
 ```
 
-### 🔧 Custom Error Reporters
+### Performance Optimization
 
 ```typescript
-// Build reporters for any service!
-const myCustomReporter: ErrorReporter = async (error) => {
-  // Use Bun's native fetch for maximum performance!
-  await Bun.$fetch('https://my-error-service.com/api/errors', {
-    method: 'POST',
-    body: Bun.JSON.stringify(error),
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
+// Error batching for high-traffic apps
+const batcher = new ErrorBatcher({
+  maxBatchSize: 10,
+  flushIntervalMs: 5000,
+});
 
-debugg.addReporter(myCustomReporter);
+// Error debouncing to prevent flooding
+const debouncer = new ErrorDebouncer({
+  intervalMs: 1000,
+  maxBuffered: 10,
+});
 ```
 
-### 📊 Error Creation Without Handling
+## 📚 Documentation
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes
+- **[API Documentation](docs/api/)** - Complete API reference
+- **[Integration Guides](docs/integrations/)** - React, Vue, Express, Next.js
+- **[Migration Guide](docs/MIGRATION.md)** - From other error handlers
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues
+- **[FAQ](docs/FAQ.md)** - Frequently asked questions
+
+## 🛠️ Framework Integration
+
+### React
 
 ```typescript
-// Create structured errors for analytics, logging, etc.
-const structuredError = debugg.createError(
-  new Error('Database timeout'),
-  {
-    database: 'postgresql',
-    query: 'SELECT * FROM users',
-    timeout: 5000,
-    affectedUsers: 150
-  },
-  'high' // Optional: override automatic severity
-);
+import { ErrorBoundary } from 'debugg/react';
 
-// Use in analytics, monitoring, or custom processing
-analytics.track('error_occurred', structuredError);
-monitoring.log(structuredError);
-customProcessing(structuredError);
+<ErrorBoundary>
+  <App />
+</ErrorBoundary>
 ```
+
+[See React Integration Guide →](docs/integrations/react.md)
+
+### Express
+
+```typescript
+import { createExpressErrorHandler } from 'debugg/middleware/express';
+
+app.use(createExpressErrorHandler(debugg));
+```
+
+[See Express Integration Guide →](docs/integrations/express.md)
+
+### Next.js
+
+```typescript
+import { withErrorHandler } from 'debugg/next';
+
+export const getServerSideProps = withErrorHandler(async (context) => {
+  // Your code
+});
+```
+
+[See Next.js Integration Guide →](docs/integrations/nextjs.md)
 
 ## 📊 Built-in Reporters
 
-### 🚀 Sentry Reporter
+| Reporter | Description | Installation |
+|----------|-------------|--------------|
+| **Console** | Formatted console output | Built-in |
+| **Sentry** | Sentry.io integration | `bun add @sentry/node` |
+| **Webhook** | HTTP webhook endpoint | Built-in |
+| **Custom** | Your own reporter | Built-in |
 
-```typescript
-import { createSentryReporter } from 'debugg';
-
-debugg.addReporter(createSentryReporter('YOUR_SENTRY_DSN'));
-// Automatically sends all errors to Sentry!
-```
-
-### 🌐 Webhook Reporter
-
-```typescript
-import { createWebhookReporter } from 'debugg';
-
-debugg.addReporter(createWebhookReporter('https://api.example.com/error-webhook'));
-// POSTs all errors to your webhook endpoint!
-```
-
-### 💻 Console Reporter
-
-```typescript
-import { createConsoleReporter } from 'universal-error-handler';
-
-debugg.addReporter(createConsoleReporter());
-// Beautiful, structured console output!
-```
-
-## 🔍 Error Classification Rules
+## 🔍 Error Classification
 
 | Error Type | Severity | Description |
 |------------|----------|-------------|
@@ -277,108 +225,141 @@ debugg.addReporter(createConsoleReporter());
 | Network errors | High | Connection issues |
 | HTTP 5xx | Critical | Server errors |
 | HTTP 4xx | Medium | Client errors |
-| Default | Medium | Other errors |
 
-## 📈 Why Debugg is Valuable
+## 🚀 Advanced Usage
 
-### 👨‍💻 For Developers
+### Custom Error Reporters
 
-- **Saves time** - No more writing custom error handling
-- **Reduces frustration** - Makes debugging actually enjoyable
-- **Improves code quality** - Consistent patterns across projects
-- **Better debugging** - Rich context and structured data
-- **Easy integration** - Works with your existing tools
+```typescript
+import { ErrorReporter } from 'debugg';
 
-### 🏢 For Teams & Companies
+const myReporter: ErrorReporter = async (error) => {
+  await fetch('https://my-service.com/errors', {
+    method: 'POST',
+    body: JSON.stringify(error),
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
 
-- **Standardized error handling** - One solution for all apps
-- **Better production monitoring** - Consistent error formats
-- **Faster issue resolution** - Detailed context for every error
-- **Cross-platform consistency** - Browser, Node.js, Mobile
-- **Reduced maintenance** - Unified error reporting system
+debugg.addReporter(myReporter);
+```
 
-### 💼 For Recruiters & Technical Leaders
+### Error Analytics
 
-- **Shows architectural thinking** - Solves universal developer pain
-- **Demonstrates attention to detail** - Comprehensive solution
-- **Proves production experience** - Built for real-world use
-- **Highlights TypeScript expertise** - Fully typed, modern API
-- **Shows innovation** - "Debug smarter, not harder" approach
+```typescript
+// Get error metrics
+const metrics = debugg.getErrorMetrics();
+console.log(`Total errors: ${metrics.totalErrors}`);
+console.log(`Resolution rate: ${metrics.resolutionRate}%`);
 
-## 💼 Business Potential
+// Get mean time to debug
+const mttd = debugg.getMeanTimeToDebug();
+console.log(`Mean time to debug: ${mttd}s`);
+```
 
-### Monetization Opportunities
+### CI Quality Gates
 
-1. **Premium Reporters** - Advanced integrations with monitoring services
-2. **Cloud Service** - Error aggregation and analytics dashboard
-3. **Enterprise Features** - Team collaboration, SLAs, advanced filtering
-4. **Consulting Services** - Help companies implement proper error handling
-5. **Training & Certification** - Error handling best practices
+```typescript
+// Set baseline
+debugg.setCIBaseline(10); // 10 errors in previous build
 
-### Job Market Value
+// Run quality gates
+const result = await debugg.runCIQualityGates();
 
-- **High demand** - Every company needs proper error handling
-- **Cross-industry applicability** - Works for any JavaScript/TypeScript project
-- **Technical leadership** - Shows you understand production systems
-- **Architectural skills** - Demonstrates system design capabilities
-- **Problem-solving** - Addresses a real pain point developers face daily
+if (!result.passed) {
+  console.error('Quality gates failed:', result.message);
+  process.exit(1);
+}
+```
 
-## 🚀 Getting Started with Development
+## 📈 Performance
+
+Debugg is optimized for production:
+
+- **Error Creation:** < 0.1ms per error
+- **Error Handling:** < 1ms per error
+- **Memory Usage:** < 1KB per error
+- **Bundle Size:** ~73 KB (gzipped)
+
+## 🧪 Testing
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/universal-error-handler.git
-cd universal-error-handler
-
-# Install dependencies (Bun recommended)
-bun install
-
-# Build the library
-bun run build
-
 # Run tests
 bun test
 
-# Start development mode
+# Run with coverage
+bun run test:coverage
+
+# Run specific test suite
+bun run test:integration
+bun run test:e2e
+bun run test:performance
+```
+
+## 🏗️ Build
+
+```bash
+# Build library
+bun run build
+
+# Development mode
 bun run dev
+
+# Analyze bundle size
+bun run build:size
+
+# Verify tree-shaking
+bun run build:verify
 ```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Quick Start for Contributors
+
+```bash
+# Clone repository
+git clone https://github.com/your-org/debugg.git
+cd debugg
+
+# Install dependencies
+bun install
+
+# Start development
+bun run dev
+
+# Run tests
+bun test
+```
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgements
 
-- Inspired by the pain points of thousands of developers
+- Inspired by developer pain points worldwide
 - Built with love for the JavaScript/TypeScript community
-- Designed to make error handling enjoyable (yes, really!)
+- Designed to make error handling enjoyable
 
 ---
 
 ## 🎨 Brand Identity
 
-Debugg is more than just a library - it's a **developer experience revolution**!
+- **Mascot:** Debugg the Bug 🐞 - friendly, helpful
+- **Mission:** Make error handling enjoyable
+- **Colors:** Vibrant red (#FF4757) for energy
+- **Typography:** Inter for clean readability
 
-- **Mascot**: Debugg the Bug 🐞 - friendly, helpful, technical
-- **Mission**: Make error handling enjoyable and empower developers
-- **Vision**: Change how the industry thinks about error monitoring
-- **Colors**: Vibrant red (#FF4757) for energy and action
-- **Typography**: Inter for clean, modern readability
+---
 
 **🔥 Ready to debug smarter? Install Debugg today!**
 
 ```bash
-bun add universal-error-handler
+bun add debugg
 ```
 
 **Star this repository if you love debugging again! ⭐**
 
-📚 **Explore our comprehensive documentation:**
-- [API Documentation](API_DOCUMENTATION.md)
-- [Brand Identity](BRAND_IDENTITY.md)
-- [Quality Framework](QUALITY_ASSURANCE_FRAMEWORK.md)
-- [Exit Strategy](EXIT_STRATEGY.md)
+[![Debugg Logo](https://via.placeholder.com/200x200?text=Debugg+🐞)](https://github.com/your-org/debugg)

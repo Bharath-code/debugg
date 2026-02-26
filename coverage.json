@@ -1,0 +1,24 @@
+{
+  "reporters": ["text", "json"],
+  "outputFile": "./coverage/coverage-summary.json",
+  "thresholds": {
+    "lines": 80,
+    "functions": 80,
+    "branches": 70,
+    "statements": 80
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.d.ts",
+    "src/**/*.test.ts",
+    "src/index.ts"
+  ],
+  "watermarks": {
+    "lines": [80, 95],
+    "functions": [80, 95],
+    "branches": [70, 90],
+    "statements": [80, 95]
+  }
+}
