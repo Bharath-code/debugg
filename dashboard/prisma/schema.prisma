@@ -1,0 +1,245 @@
+// Prisma Schema for Debugg Dashboard
+// Includes: Users, Projects, Errors, Audit Logs
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Users & Authentication ====================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?   // bcrypt hash
+  role          UserRole  @default(VIEWER)
+  active        Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  
+  // Metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  
+  // Relations
+  projects      ProjectMember[]
+  auditLogs     AuditLog[]
+  sessions      Session[]
+  
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  ADMIN       // Full access
+  DEVELOPER   // Read/write errors
+  VIEWER      // Read-only
+}
+
+// ==================== Sessions ====================
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ==================== Projects ====================
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  apiKey      String   @unique
+  description String?
+  active      Boolean  @default(true)
+  
+  // Settings
+  settings    Json?
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  members     ProjectMember[]
+  errors      ErrorRecord[]
+  alerts      AlertRule[]
+  
+  @@index([slug])
+  @@index([apiKey])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      MemberRole @default(MEMBER)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  ADMIN      // Project admin
+  DEVELOPER  // Can manage errors
+  MEMBER     // Standard member
+}
+
+// ==================== Errors ====================
+
+model ErrorRecord {
+  id          String   @id @default(uuid())
+  errorId     String   @unique
+  name        String
+  message     String
+  severity    String
+  status      String   @default("OPEN")
+  
+  // Data
+  context     String   // JSON
+  metadata    String   // JSON
+  stack       String?
+  fingerprint String
+  
+  // Timestamps
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Workflow
+  assignedTo  String?
+  resolvedAt  DateTime?
+  ignoredAt   DateTime?
+  
+  // Relations
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  
+  occurrences ErrorOccurrence[]
+  comments    Comment[]
+  
+  @@index([fingerprint])
+  @@index([severity])
+  @@index([status])
+  @@index([timestamp])
+  @@index([projectId])
+}
+
+model ErrorOccurrence {
+  id        String   @id @default(uuid())
+  errorId   String
+  error     ErrorRecord @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  context   String   // JSON
+  
+  @@index([errorId])
+  @@index([timestamp])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  errorId   String
+  error     ErrorRecord @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([errorId])
+  @@index([userId])
+}
+
+// ==================== Audit Logging ====================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+  
+  // Actor
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  userName    String?  // Denormalized for performance
+  
+  // Action
+  action      AuditAction
+  resourceType String
+  resourceId  String?
+  
+  // Details
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  
+  // Result
+  success     Boolean  @default(true)
+  errorMessage String?
+  
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resourceType, resourceId])
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE_USER
+  UPDATE_USER
+  DELETE_USER
+  CREATE_ERROR
+  UPDATE_ERROR
+  DELETE_ERROR
+  CREATE_PROJECT
+  UPDATE_PROJECT
+  DELETE_PROJECT
+  VIEW_AUDIT_LOG
+  EXPORT_DATA
+  SYSTEM
+}
+
+// ==================== Alerts & Notifications ====================
+
+model AlertRule {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  active    Boolean  @default(true)
+  
+  // Conditions
+  severity  String?  // JSON array
+  count     Int?
+  window    Int?     // Minutes
+  
+  // Actions
+  type      String   // email, slack, webhook
+  config    String   // JSON config
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([projectId])
+}

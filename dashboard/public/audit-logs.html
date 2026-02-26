@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs - Debugg Dashboard</title>
+  
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  
+  <!-- Components CSS -->
+  <link rel="stylesheet" href="components.css">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+      background: #0f0f11; 
+      color: #e4e4e7;
+    }
+    .dashboard { max-width: 1600px; margin: 0 auto; padding: 24px; }
+    
+    header { 
+      background: linear-gradient(135deg, #dc2626 0%, #2563eb 100%); 
+      color: white; 
+      padding: 24px; 
+      border-radius: 12px; 
+      margin-bottom: 24px;
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p { opacity: 0.9; margin-top: 4px; }
+    .header-actions { display: flex; gap: 12px; }
+    
+    .stats-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      gap: 16px; 
+      margin-bottom: 24px; 
+    }
+    .stat-card { 
+      background: #18181b; 
+      padding: 20px; 
+      border-radius: 12px; 
+      border: 1px solid #27272a; 
+    }
+    .stat-card h3 { color: #71717a; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; }
+    
+    .card { 
+      background: #18181b; 
+      border-radius: 12px; 
+      border: 1px solid #27272a; 
+      overflow: hidden; 
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #27272a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .card-body { padding: 0; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { 
+      padding: 14px 20px; 
+      text-align: left; 
+      border-bottom: 1px solid #27272a; 
+    }
+    th { 
+      background: #1f1f23; 
+      font-weight: 600; 
+      color: #a1a1aa; 
+      font-size: 0.75rem; 
+      text-transform: uppercase; 
+    }
+    tr:hover { background: #1f1f23; }
+    
+    .badge { 
+      padding: 4px 10px; 
+      border-radius: 6px; 
+      font-size: 0.75rem; 
+      font-weight: 600; 
+      text-transform: uppercase;
+      display: inline-block;
+    }
+    .badge-success { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .badge-error { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .badge-info { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .badge-warning { background: rgba(234,179,8,0.15); color: #eab308; }
+    
+    .action-CREATE { color: #22c55e; }
+    .action-UPDATE { color: #3b82f6; }
+    .action-DELETE { color: #ef4444; }
+    .action-LOGIN { color: #8b5cf6; }
+    .action-LOGOUT { color: #6b7280; }
+    
+    .btn { 
+      padding: 8px 16px; 
+      border-radius: 6px; 
+      border: none; 
+      cursor: pointer; 
+      font-weight: 600; 
+      font-size: 0.875rem; 
+      transition: all 0.2s;
+    }
+    .btn-primary { background: white; color: #1f2937; }
+    .btn-primary:hover { background: #f3f4f6; }
+    .btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.25); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    
+    .filters { display: flex; gap: 12px; flex-wrap: wrap; }
+    .filter-input {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #27272a;
+      background: #18181b;
+      color: #e4e4e7;
+      font-size: 0.875rem;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      padding: 20px;
+    }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    [x-cloak] { display: none !important; }
+    .modal {
+      background: #18181b;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid #27272a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 24px;
+      border-top: 1px solid #27272a;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: #71717a;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    
+    .detail-section { margin-bottom: 16px; }
+    .detail-section h3 { 
+      color: #71717a; 
+      font-size: 0.75rem; 
+      text-transform: uppercase; 
+      margin-bottom: 8px;
+    }
+    .detail-content { 
+      background: #1f1f23; 
+      padding: 12px; 
+      border-radius: 6px; 
+      font-family: monospace; 
+      font-size: 0.8rem; 
+    }
+    
+    .loading { text-align: center; padding: 48px; color: #71717a; }
+    .empty-state { text-align: center; padding: 48px; color: #71717a; }
+    
+    footer { 
+      margin-top: 24px; 
+      text-align: center; 
+      color: #52525b; 
+      font-size: 0.875rem; 
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  
+  <div x-data="auditLogs()" x-init="init()" class="dashboard">
+    
+    <!-- Header -->
+    <header>
+      <div>
+        <h1>📋 Audit Logs</h1>
+        <p>Track all user actions and system events</p>
+      </div>
+      <div class="header-actions">
+        <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="/users.html" class="btn btn-secondary">👥 Users</a>
+        <button class="btn btn-primary" @click="exportLogs()">📥 Export CSV</button>
+      </div>
+    </header>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Actions</h3>
+        <div class="value" x-text="stats.total">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Successful</h3>
+        <div class="value" style="color: #22c55e;" x-text="stats.successful">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Failed</h3>
+        <div class="value" style="color: #ef4444;" x-text="stats.failed">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Today</h3>
+        <div class="value" style="color: #3b82f6;" x-text="stats.today">-</div>
+      </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-header">
+        <h2>Filters</h2>
+        <div class="filters">
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            x-model="filters.search"
+            class="filter-input"
+            style="width: 250px;"
+          >
+          <select x-model="filters.user" class="filter-input">
+            <option value="">All Users</option>
+            <template x-for="user in uniqueUsers" :key="user">
+              <option :value="user" x-text="user"></option>
+            </template>
+          </select>
+          <select x-model="filters.action" class="filter-input">
+            <option value="">All Actions</option>
+            <option value="LOGIN">Login</option>
+            <option value="LOGOUT">Logout</option>
+            <option value="CREATE_USER">Create User</option>
+            <option value="UPDATE_USER">Update User</option>
+            <option value="DELETE_USER">Delete User</option>
+            <option value="CREATE_ERROR">Create Error</option>
+            <option value="UPDATE_ERROR">Update Error</option>
+            <option value="DELETE_ERROR">Delete Error</option>
+            <option value="SYSTEM">System</option>
+          </select>
+          <select x-model="filters.success" class="filter-input">
+            <option value="">All Results</option>
+            <option value="true">Success</option>
+            <option value="false">Failed</option>
+          </select>
+          <input 
+            type="date" 
+            x-model="filters.dateFrom"
+            class="filter-input"
+            title="From Date"
+          >
+          <input 
+            type="date" 
+            x-model="filters.dateTo"
+            class="filter-input"
+            title="To Date"
+          >
+          <button class="btn btn-sm btn-secondary" @click="applyFilters()">Apply</button>
+          <button class="btn btn-sm btn-secondary" @click="resetFilters()">Reset</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Audit Logs Table -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Audit Log Entries</h2>
+        <span style="color: #71717a; font-size: 0.875rem;" x-text="`Showing ${filteredLogs.length} of ${logs.length} entries`"></span>
+      </div>
+      
+      <div class="card-body">
+        <!-- Loading -->
+        <div x-show="loading" class="loading">
+          <div class="spinner" style="border: 3px solid #27272a; border-top-color: #dc2626; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p>Loading audit logs...</p>
+        </div>
+        
+        <!-- Table -->
+        <table x-show="!loading" x-cloak>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Resource</th>
+              <th>IP Address</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="log in filteredLogs" :key="log.id">
+              <tr @click="showLogDetail(log)" style="cursor: pointer;">
+                <td style="color: #71717a; font-size: 0.85rem;" x-text="formatDate(log.timestamp)"></td>
+                <td x-text="log.userName || 'System'"></td>
+                <td>
+                  <span class="badge" :class="getActionClass(log.action)" x-text="log.action"></span>
+                </td>
+                <td>
+                  <span style="font-family: monospace; font-size: 0.85rem;" x-text="log.resourceType + '#' + (log.resourceId || 'N/A')"></span>
+                </td>
+                <td style="color: #71717a; font-size: 0.85rem;" x-text="log.ipAddress || '-'"></td>
+                <td>
+                  <span class="badge" :class="log.success ? 'badge-success' : 'badge-error'" 
+                        x-text="log.success ? 'Success' : 'Failed'"></span>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-secondary" @click.stop="showLogDetail(log)">View</button>
+                </td>
+              </tr>
+            </template>
+            
+            <!-- Empty State -->
+            <tr x-show="filteredLogs.length === 0 && !loading">
+              <td colspan="7" class="empty-state">
+                <p x-text="logs.length === 0 ? 'No audit logs yet' : 'No logs match your filters'"></p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        <div class="pagination" x-show="totalPages > 1" x-cloak>
+          <button class="btn btn-sm btn-secondary" 
+                  @click="currentPage--" 
+                  :disabled="currentPage <= 1">
+            ← Previous
+          </button>
+          <span style="color: #71717a; font-size: 0.875rem;" x-text="`Page ${currentPage} of ${totalPages}`"></span>
+          <button class="btn btn-sm btn-secondary" 
+                  @click="currentPage++" 
+                  :disabled="currentPage >= totalPages">
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Log Detail Modal -->
+    <div x-show="selectedLog" 
+         x-cloak
+         class="modal-overlay"
+         @click.self="selectedLog = null">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Audit Log Details</h2>
+          <button class="close-btn" @click="selectedLog = null">&times;</button>
+        </div>
+        
+        <div class="modal-body" x-show="selectedLog">
+          <div class="detail-section">
+            <h3>Timestamp</h3>
+            <div class="detail-content" x-text="selectedLog?.timestamp"></div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>User</h3>
+            <div class="detail-content" x-text="selectedLog?.userName || 'System'"></div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Action</h3>
+            <div class="detail-content">
+              <span class="badge" :class="getActionClass(selectedLog?.action)" x-text="selectedLog?.action"></span>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Resource</h3>
+            <div class="detail-content">
+              <p>Type: <span x-text="selectedLog?.resourceType"></span></p>
+              <p>ID: <span x-text="selectedLog?.resourceId || 'N/A'"></span></p>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Details</h3>
+            <div class="detail-content">
+              <pre x-text="JSON.stringify(selectedLog?.details, null, 2)"></pre>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Network Info</h3>
+            <div class="detail-content">
+              <p>IP Address: <span x-text="selectedLog?.ipAddress || 'N/A'"></span></p>
+              <p>User Agent: <span x-text="selectedLog?.userAgent || 'N/A'"></span></p>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Result</h3>
+            <div class="detail-content">
+              <p>Status: 
+                <span class="badge" :class="selectedLog?.success ? 'badge-success' : 'badge-error'" 
+                      x-text="selectedLog?.success ? 'Success' : 'Failed'"></span>
+              </p>
+              <p x-show="selectedLog?.errorMessage">
+                Error: <span x-text="selectedLog?.errorMessage"></span>
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="selectedLog = null">Close</button>
+        </div>
+      </div>
+    </div>
+    
+    <footer>
+      <p>Debugg Dashboard v2.0 | Audit Logs | <span x-text="`Last updated: ${lastUpdated}`"></span></p>
+    </footer>
+  </div>
+  
+  <script>
+    function auditLogs() {
+      return {
+        logs: [],
+        filteredLogs: [],
+        stats: { total: 0, successful: 0, failed: 0, today: 0 },
+        uniqueUsers: [],
+        loading: false,
+        selectedLog: null,
+        currentPage: 1,
+        pageSize: 50,
+        filters: {
+          search: '',
+          user: '',
+          action: '',
+          success: '',
+          dateFrom: '',
+          dateTo: ''
+        },
+        lastUpdated: 'Never',
+        
+        async init() {
+          await this.loadLogs();
+          setInterval(() => this.loadLogs(), 60000); // Auto-refresh every minute
+        },
+        
+        async loadLogs() {
+          this.loading = true;
+          try {
+            const response = await fetch('/api/audit-logs');
+            const data = await response.json();
+            
+            if (data.success) {
+              this.logs = data.logs;
+              this.filteredLogs = data.logs;
+              this.stats = data.stats;
+              this.uniqueUsers = [...new Set(data.logs.map(l => l.userName).filter(Boolean))];
+              this.lastUpdated = new Date().toLocaleTimeString();
+            }
+          } catch (error) {
+            console.error('Failed to load logs:', error);
+          } finally {
+            this.loading = false;
+          }
+        },
+        
+        applyFilters() {
+          let filtered = [...this.logs];
+          
+          // Search filter
+          if (this.filters.search) {
+            const query = this.filters.search.toLowerCase();
+            filtered = filtered.filter(l => 
+              (l.userName && l.userName.toLowerCase().includes(query)) ||
+              l.action.toLowerCase().includes(query) ||
+              l.resourceType.toLowerCase().includes(query) ||
+              (l.ipAddress && l.ipAddress.includes(query))
+            );
+          }
+          
+          // User filter
+          if (this.filters.user) {
+            filtered = filtered.filter(l => l.userName === this.filters.user);
+          }
+          
+          // Action filter
+          if (this.filters.action) {
+            filtered = filtered.filter(l => l.action === this.filters.action);
+          }
+          
+          // Success filter
+          if (this.filters.success !== '') {
+            filtered = filtered.filter(l => l.success === (this.filters.success === 'true'));
+          }
+          
+          // Date filters
+          if (this.filters.dateFrom) {
+            const from = new Date(this.filters.dateFrom);
+            filtered = filtered.filter(l => new Date(l.timestamp) >= from);
+          }
+          
+          if (this.filters.dateTo) {
+            const to = new Date(this.filters.dateTo);
+            to.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(l => new Date(l.timestamp) <= to);
+          }
+          
+          this.filteredLogs = filtered;
+        },
+        
+        resetFilters() {
+          this.filters = {
+            search: '',
+            user: '',
+            action: '',
+            success: '',
+            dateFrom: '',
+            dateTo: ''
+          };
+          this.filteredLogs = this.logs;
+        },
+        
+        showLogDetail(log) {
+          this.selectedLog = log;
+        },
+        
+        getActionClass(action) {
+          const classes = {
+            'CREATE': 'action-CREATE',
+            'UPDATE': 'action-UPDATE',
+            'DELETE': 'action-DELETE',
+            'LOGIN': 'action-LOGIN',
+            'LOGOUT': 'action-LOGOUT'
+          };
+          
+          for (const [key, cls] of Object.entries(classes)) {
+            if (action.includes(key)) return cls;
+          }
+          
+          return '';
+        },
+        
+        exportLogs() {
+          const headers = ['Timestamp', 'User', 'Action', 'Resource', 'IP Address', 'Status', 'Details'];
+          const rows = this.filteredLogs.map(log => [
+            log.timestamp,
+            log.userName || 'System',
+            log.action,
+            `${log.resourceType}#${log.resourceId || 'N/A'}`,
+            log.ipAddress || '-',
+            log.success ? 'Success' : 'Failed',
+            JSON.stringify(log.details || {})
+          ]);
+          
+          const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+          
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        
+        formatDate(timestamp) {
+          return new Date(timestamp).toLocaleString();
+        },
+        
+        get totalPages() {
+          return Math.ceil(this.filteredLogs.length / this.pageSize);
+        }
+      }
+    }
+    
+    // Add spin animation
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

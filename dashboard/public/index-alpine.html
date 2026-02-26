@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debugg Dashboard - Alpine.js Example</title>
+  
+  <!-- Alpine.js (Lightweight Reactivity) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- HTMX (Server Communication) -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  
+  <!-- Components CSS -->
+  <link rel="stylesheet" href="components.css">
+  
+  <style>
+    /* Dashboard-specific styles */
+    [x-cloak] { display: none !important; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+    .fade-enter, .fade-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+  
+  <!-- Dashboard App -->
+  <div x-data="dashboard()" x-init="init()" class="dashboard">
+    
+    <!-- Header -->
+    <header>
+      <div>
+        <h1>🐞 Debugg Dashboard <span style="font-size: 0.875rem; opacity: 0.8;">v2.0 (Alpine.js)</span></h1>
+        <p>Smart Error Monitoring and Analysis</p>
+      </div>
+      <div class="header-actions">
+        <!-- Auto-refresh toggle -->
+        <button class="btn btn-secondary" 
+                @click="autoRefresh = !autoRefresh"
+                :class="{ 'btn-success': autoRefresh }">
+          <span x-text="autoRefresh ? '🔴 Auto-Refresh ON' : '⚪ Auto-Refresh OFF'"></span>
+        </button>
+        
+        <button class="btn btn-secondary" @click="refreshAll()">↻ Refresh</button>
+        <button class="btn btn-primary" @click="showTestErrorModal = true">+ Test Error</button>
+      </div>
+    </header>
+    
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Errors</h3>
+        <div class="value" x-text="stats.total">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Critical</h3>
+        <div class="value severity-critical" x-text="stats.critical">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>High</h3>
+        <div class="value severity-high" x-text="stats.high">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Resolved</h3>
+        <div class="value severity-low" x-text="stats.resolved">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Error Groups</h3>
+        <div class="value" x-text="stats.groups">-</div>
+      </div>
+    </div>
+    
+    <!-- Loading State -->
+    <div x-show="loading" class="loading">
+      <div class="spinner spinner-medium"></div>
+      <p>Loading errors...</p>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters" x-show="!loading">
+      <input type="text" 
+             class="search-input" 
+             placeholder="Search errors..."
+             x-model="searchQuery"
+             @input.debounce.300ms="filterErrors()">
+      
+      <select class="filter-dropdown" x-model="severityFilter" @change="filterErrors()">
+        <option value="">All Severities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+        <option value="info">Info</option>
+      </select>
+      
+      <select class="filter-dropdown" x-model="statusFilter" @change="filterErrors()">
+        <option value="">All Statuses</option>
+        <option value="OPEN">Open</option>
+        <option value="TRIAGED">Triaged</option>
+        <option value="RESOLVED">Resolved</option>
+        <option value="IGNORED">Ignored</option>
+      </select>
+    </div>
+    
+    <!-- Error Table -->
+    <div class="error-list" x-show="!loading">
+      <div class="error-list-header">
+        <h2>Recent Errors</h2>
+        <span x-text="`Showing ${filteredErrors.length} of ${errors.length} errors`"></span>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th @click="sortBy('severity')" class="sortable">Severity</th>
+            <th @click="sortBy('message')" class="sortable">Message</th>
+            <th @click="sortBy('status')" class="sortable">Status</th>
+            <th>Platform</th>
+            <th @click="sortBy('occurrenceCount')" class="sortable">Count</th>
+            <th @click="sortBy('timestamp')" class="sortable">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="error in filteredErrors" :key="error.errorId">
+            <tr @click="showErrorDetail(error)" class="clickable">
+              <td>
+                <span class="badge" 
+                      :class="`badge-${error.severity}`"
+                      x-text="error.severity">
+                </span>
+              </td>
+              <td x-text="error.message" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;"></td>
+              <td>
+                <span class="badge" 
+                      :class="`badge-${error.status.toLowerCase()}`"
+                      x-text="error.status">
+                </span>
+              </td>
+              <td>
+                <span class="platform-badge" x-text="error.metadata?.platform || 'unknown'"></span>
+              </td>
+              <td x-text="error.occurrenceCount || 1"></td>
+              <td x-text="formatDate(error.timestamp)"></td>
+            </tr>
+          </template>
+          
+          <!-- Empty State -->
+          <tr x-show="filteredErrors.length === 0">
+            <td colspan="6" class="empty-state">
+              <p x-text="errors.length === 0 ? 'No errors yet' : 'No errors match your filters'"></p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <!-- Pagination -->
+      <div class="pagination" x-show="totalPages > 1">
+        <button class="btn btn-sm btn-secondary" 
+                @click="currentPage--" 
+                :disabled="currentPage <= 1">
+          ← Previous
+        </button>
+        <span x-text="`Page ${currentPage} of ${totalPages}`"></span>
+        <button class="btn btn-sm btn-secondary" 
+                @click="currentPage++" 
+                :disabled="currentPage >= totalPages">
+          Next →
+        </button>
+      </div>
+    </div>
+    
+    <!-- Error Detail Modal -->
+    <div x-show="selectedError" 
+         x-cloak
+         class="modal-overlay"
+         @click.self="selectedError = null">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <h2>Error Details</h2>
+            <div style="font-family: monospace; color: #71717a; font-size: 0.875rem;"
+                 x-text="selectedError?.errorId">
+            </div>
+          </div>
+          <button class="close-btn" @click="selectedError = null">&times;</button>
+        </div>
+        
+        <div class="modal-body" x-show="selectedError">
+          <!-- Meta Grid -->
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Severity</span>
+              <span class="meta-value">
+                <span class="badge" :class="`badge-${selectedError.severity}`" x-text="selectedError.severity"></span>
+              </span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Status</span>
+              <span class="meta-value">
+                <span class="badge" :class="`badge-${selectedError.status.toLowerCase()}`" x-text="selectedError.status"></span>
+              </span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Platform</span>
+              <span class="meta-value" x-text="selectedError.metadata?.platform || 'unknown'"></span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Service</span>
+              <span class="meta-value" x-text="selectedError.metadata?.serviceName || 'unknown'"></span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">First Occurrence</span>
+              <span class="meta-value" x-text="formatDate(selectedError.timestamp)"></span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Occurrences</span>
+              <span class="meta-value" x-text="selectedError.occurrenceCount || 1"></span>
+            </div>
+          </div>
+          
+          <!-- Error Message -->
+          <div class="detail-section">
+            <h3>Error Message</h3>
+            <div class="detail-content" x-text="selectedError.message"></div>
+          </div>
+          
+          <!-- Stack Trace -->
+          <div class="detail-section" x-show="selectedError.stack">
+            <h3>Stack Trace</h3>
+            <div class="detail-content" x-text="selectedError.stack"></div>
+          </div>
+          
+          <!-- Context -->
+          <div class="detail-section">
+            <h3>Context</h3>
+            <div class="detail-content">
+              <pre x-text="JSON.stringify(selectedError.context, null, 2)"></pre>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-success" 
+                  @click="updateErrorStatus('RESOLVED')"
+                  :disabled="selectedError?.status === 'RESOLVED'">
+            ✓ Mark Resolved
+          </button>
+          <button class="btn btn-secondary" 
+                  @click="updateErrorStatus('IGNORED')"
+                  :disabled="selectedError?.status === 'IGNORED'">
+            Ignore
+          </button>
+          <button class="btn btn-primary" @click="selectedError = null">Close</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Test Error Modal -->
+    <div x-show="showTestErrorModal" 
+         x-cloak
+         class="modal-overlay"
+         @click.self="showTestErrorModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Generate Test Error</h2>
+          <button class="close-btn" @click="showTestErrorModal = false">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Severity</label>
+            <select x-model="testErrorSeverity" class="filter-dropdown">
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="info">Info</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-primary" @click="generateTestError()">Generate</button>
+          <button class="btn btn-secondary" @click="showTestErrorModal = false">Cancel</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Alert/Notification -->
+    <div x-show="alert.show" 
+         x-transition
+         class="alert"
+         :class="`alert-${alert.type}`"
+         style="position: fixed; bottom: 20px; right: 20px; z-index: 2000; min-width: 300px;">
+      <span x-text="alert.message"></span>
+      <button class="alert-close" @click="alert.show = false">&times;</button>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+      <p>Debugg Dashboard v2.0 | Powered by Alpine.js + HTMX</p>
+    </footer>
+  </div>
+  
+  <!-- Dashboard Logic -->
+  <script>
+    function dashboard() {
+      return {
+        // State
+        loading: false,
+        errors: [],
+        filteredErrors: [],
+        stats: {
+          total: 0,
+          critical: 0,
+          high: 0,
+          resolved: 0,
+          groups: 0
+        },
+        selectedError: null,
+        showTestErrorModal: false,
+        testErrorSeverity: 'medium',
+        autoRefresh: false,
+        refreshInterval: null,
+        currentPage: 1,
+        pageSize: 20,
+        searchQuery: '',
+        severityFilter: '',
+        statusFilter: '',
+        sortByField: 'timestamp',
+        sortDesc: true,
+        alert: {
+          show: false,
+          message: '',
+          type: 'info'
+        },
+        
+        // Initialize
+        async init() {
+          await this.refreshAll();
+          
+          // Auto-refresh if enabled
+          this.$watch('autoRefresh', (value) => {
+            if (value) {
+              this.refreshInterval = setInterval(() => this.refreshAll(), 30000);
+            } else {
+              clearInterval(this.refreshInterval);
+            }
+          });
+        },
+        
+        // Refresh all data
+        async refreshAll() {
+          this.loading = true;
+          try {
+            await Promise.all([
+              this.fetchErrors(),
+              this.fetchStats()
+            ]);
+          } catch (error) {
+            this.showAlert('Failed to refresh data', 'error');
+          } finally {
+            this.loading = false;
+          }
+        },
+        
+        // Fetch errors from API
+        async fetchErrors() {
+          try {
+            const response = await fetch(`/api/errors?page=${this.currentPage}&limit=${this.pageSize}`);
+            const data = await response.json();
+            
+            if (data.success) {
+              this.errors = data.data || [];
+              this.filterErrors();
+            }
+          } catch (error) {
+            console.error('Failed to fetch errors:', error);
+          }
+        },
+        
+        // Fetch statistics
+        async fetchStats() {
+          try {
+            const response = await fetch('/api/errors/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+              this.stats = {
+                total: data.stats.total || 0,
+                critical: data.stats.bySeverity?.critical || 0,
+                high: data.stats.bySeverity?.high || 0,
+                resolved: data.stats.byStatus?.resolved || 0,
+                groups: 0 // Would need separate API call
+              };
+            }
+          } catch (error) {
+            console.error('Failed to fetch stats:', error);
+          }
+        },
+        
+        // Filter errors
+        filterErrors() {
+          let filtered = [...this.errors];
+          
+          // Search filter
+          if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(e => 
+              e.message.toLowerCase().includes(query) ||
+              e.name.toLowerCase().includes(query)
+            );
+          }
+          
+          // Severity filter
+          if (this.severityFilter) {
+            filtered = filtered.filter(e => e.severity === this.severityFilter);
+          }
+          
+          // Status filter
+          if (this.statusFilter) {
+            filtered = filtered.filter(e => e.status === this.statusFilter);
+          }
+          
+          // Sort
+          filtered.sort((a, b) => {
+            let aVal = a[this.sortByField];
+            let bVal = b[this.sortByField];
+            
+            if (this.sortByField === 'timestamp') {
+              aVal = new Date(aVal).getTime();
+              bVal = new Date(bVal).getTime();
+            }
+            
+            return this.sortDesc ? (bVal - aVal) : (aVal - bVal);
+          });
+          
+          this.filteredErrors = filtered;
+        },
+        
+        // Sort by field
+        sortBy(field) {
+          if (this.sortByField === field) {
+            this.sortDesc = !this.sortDesc;
+          } else {
+            this.sortByField = field;
+            this.sortDesc = true;
+          }
+          this.filterErrors();
+        },
+        
+        // Show error detail
+        showErrorDetail(error) {
+          this.selectedError = error;
+        },
+        
+        // Update error status
+        async updateErrorStatus(status) {
+          if (!this.selectedError) return;
+          
+          try {
+            const response = await fetch(`/api/errors/${this.selectedError.errorId}/status`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.showAlert(`Error marked as ${status}`, 'success');
+              this.selectedError = null;
+              this.refreshAll();
+            } else {
+              this.showAlert('Failed to update status', 'error');
+            }
+          } catch (error) {
+            this.showAlert('Failed to update status', 'error');
+          }
+        },
+        
+        // Generate test error
+        async generateTestError() {
+          try {
+            const testError = {
+              errorId: `err_test_${Date.now()}`,
+              name: 'TestError',
+              message: `Test error - ${this.testErrorSeverity}`,
+              severity: this.testErrorSeverity,
+              timestamp: new Date().toISOString(),
+              context: { source: 'dashboard_test' },
+              metadata: { platform: 'browser', serviceName: 'debugg-dashboard' }
+            };
+            
+            const response = await fetch('/api/errors', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(testError)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.showAlert('Test error created', 'success');
+              this.showTestErrorModal = false;
+              this.refreshAll();
+            }
+          } catch (error) {
+            this.showAlert('Failed to create test error', 'error');
+          }
+        },
+        
+        // Show alert/notification
+        showAlert(message, type = 'info') {
+          this.alert = { show: true, message, type };
+          setTimeout(() => {
+            this.alert.show = false;
+          }, 5000);
+        },
+        
+        // Format date
+        formatDate(timestamp) {
+          return new Date(timestamp).toLocaleString();
+        },
+        
+        // Get total pages
+        get totalPages() {
+          return Math.ceil(this.errors.length / this.pageSize);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

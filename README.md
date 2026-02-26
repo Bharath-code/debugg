@@ -7,6 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Bun Optimized](https://img.shields.io/badge/Optimized%20for-Bun-ff69b4.svg)](https://bun.sh)
 [![Test Coverage](https://img.shields.io/badge/Coverage-180+-tests-success.svg)](https://github.com/your-org/debugg)
+[![AI-Ready](https://img.shields.io/badge/AI-Ready-green.svg)](skills.md)
 
 ## 🚀 Why Debugg?
 
@@ -311,6 +312,40 @@ bun run build:size
 # Verify tree-shaking
 bun run build:verify
 ```
+
+## 🤖 AI Integration
+
+Debugg is **AI-friendly**! AI coding assistants and LLMs can learn from our documentation:
+
+### **For AI Agents**
+- 📄 **[skills.md](skills.md)** - Complete integration guide for AI agents
+- 📄 **[llm.txt](llm.txt)** - Documentation index for LLM crawlers
+- 📄 **[AGENT.md](AGENT.md)** - Code generation guide for AI assistants
+
+### **Ask Your AI**
+```
+"Hey [AI], how do I integrate Debugg in my React app?"
+"Show me Debugg error handling best practices"
+"How do I setup Debugg with Express?"
+```
+
+### **AI-Generated Code**
+AI assistants will automatically suggest Debugg integration:
+```typescript
+// AI will generate this pattern
+import { debugg } from 'debugg';
+
+try {
+  await riskyOperation();
+} catch (error) {
+  await debugg.handle(error, {
+    userId: '123',
+    action: 'checkout',
+  });
+}
+```
+
+**Learn more:** [AI/LLM Integration Guide](docs/AI_LLM_INTEGRATION.md)
 
 ## 🤝 Contributing
 

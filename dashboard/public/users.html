@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management - Debugg Dashboard</title>
+  
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  
+  <!-- Components CSS -->
+  <link rel="stylesheet" href="components.css">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+      background: #0f0f11; 
+      color: #e4e4e7;
+    }
+    .dashboard { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    
+    header { 
+      background: linear-gradient(135deg, #dc2626 0%, #2563eb 100%); 
+      color: white; 
+      padding: 24px; 
+      border-radius: 12px; 
+      margin-bottom: 24px;
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p { opacity: 0.9; margin-top: 4px; }
+    .header-actions { display: flex; gap: 12px; }
+    
+    .stats-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      gap: 16px; 
+      margin-bottom: 24px; 
+    }
+    .stat-card { 
+      background: #18181b; 
+      padding: 20px; 
+      border-radius: 12px; 
+      border: 1px solid #27272a; 
+    }
+    .stat-card h3 { color: #71717a; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; }
+    
+    .card { 
+      background: #18181b; 
+      border-radius: 12px; 
+      border: 1px solid #27272a; 
+      overflow: hidden; 
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #27272a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-body { padding: 0; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { 
+      padding: 14px 20px; 
+      text-align: left; 
+      border-bottom: 1px solid #27272a; 
+    }
+    th { 
+      background: #1f1f23; 
+      font-weight: 600; 
+      color: #a1a1aa; 
+      font-size: 0.75rem; 
+      text-transform: uppercase; 
+    }
+    tr:hover { background: #1f1f23; }
+    
+    .badge { 
+      padding: 4px 10px; 
+      border-radius: 6px; 
+      font-size: 0.75rem; 
+      font-weight: 600; 
+      text-transform: uppercase;
+      display: inline-block;
+    }
+    .badge.ADMIN { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .badge.DEVELOPER { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .badge.VIEWER { background: rgba(113,113,122,0.15); color: #71717a; }
+    .badge-success { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .badge-danger { background: rgba(239,68,68,0.15); color: #ef4444; }
+    
+    .btn { 
+      padding: 8px 16px; 
+      border-radius: 6px; 
+      border: none; 
+      cursor: pointer; 
+      font-weight: 600; 
+      font-size: 0.875rem; 
+      transition: all 0.2s;
+    }
+    .btn-primary { background: white; color: #1f2937; }
+    .btn-primary:hover { background: #f3f4f6; }
+    .btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.25); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    [x-cloak] { display: none !important; }
+    .modal {
+      background: #18181b;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      width: 90%;
+      max-width: 500px;
+    }
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid #27272a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 { font-size: 1.25rem; }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 24px;
+      border-top: 1px solid #27272a;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: #71717a;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    
+    .form-group { margin-bottom: 16px; }
+    .form-group label { 
+      display: block; 
+      color: #a1a1aa; 
+      font-size: 0.875rem; 
+      margin-bottom: 8px; 
+    }
+    .form-group input, .form-group select { 
+      width: 100%; 
+      padding: 10px; 
+      border-radius: 6px; 
+      border: 1px solid #27272a; 
+      background: #0f0f11; 
+      color: #e4e4e7; 
+      font-size: 0.875rem; 
+    }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      border: 1px solid;
+    }
+    .alert-success { background: rgba(34,197,94,0.1); border-color: #22c55e; color: #86efac; }
+    .alert-error { background: rgba(239,68,68,0.1); border-color: #ef4444; color: #fca5a5; }
+    
+    footer { 
+      margin-top: 24px; 
+      text-align: center; 
+      color: #52525b; 
+      font-size: 0.875rem; 
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  
+  <div x-data="userManagement()" x-init="init()" class="dashboard">
+    
+    <!-- Header -->
+    <header>
+      <div>
+        <h1>👥 User Management</h1>
+        <p>Manage users, roles, and permissions</p>
+      </div>
+      <div class="header-actions">
+        <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+        <button class="btn btn-primary" @click="showCreateModal = true">+ Add User</button>
+      </div>
+    </header>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Users</h3>
+        <div class="value" x-text="stats.total">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Active</h3>
+        <div class="value" style="color: #22c55e;" x-text="stats.active">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Admins</h3>
+        <div class="value" style="color: #ef4444;" x-text="stats.byRole.ADMIN || 0">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Developers</h3>
+        <div class="value" style="color: #3b82f6;" x-text="stats.byRole.DEVELOPER || 0">-</div>
+      </div>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="card">
+      <div class="card-header">
+        <h2>All Users</h2>
+        <div style="display: flex; gap: 12px;">
+          <input 
+            type="text" 
+            placeholder="Search users..." 
+            x-model="searchQuery"
+            @input.debounce.300ms="filterUsers()"
+            style="padding: 8px 16px; border-radius: 6px; border: 1px solid #27272a; background: #18181b; color: #e4e4e7; font-size: 0.875rem; width: 250px;"
+          >
+          <select 
+            x-model="roleFilter"
+            @change="filterUsers()"
+            style="padding: 8px 16px; border-radius: 6px; border: 1px solid #27272a; background: #18181b; color: #e4e4e7; font-size: 0.875rem;"
+          >
+            <option value="">All Roles</option>
+            <option value="ADMIN">Admin</option>
+            <option value="DEVELOPER">Developer</option>
+            <option value="VIEWER">Viewer</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="user in filteredUsers" :key="user.id">
+              <tr>
+                <td x-text="user.email"></td>
+                <td x-text="user.name || '-'"></td>
+                <td>
+                  <span class="badge" :class="user.role" x-text="user.role"></span>
+                </td>
+                <td>
+                  <span class="badge" :class="user.active ? 'badge-success' : 'badge-danger'" 
+                        x-text="user.active ? 'Active' : 'Inactive'"></span>
+                </td>
+                <td style="color: #71717a; font-size: 0.85rem;" x-text="user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Never'"></td>
+                <td>
+                  <button class="btn btn-sm btn-secondary" @click="editUser(user)">Edit</button>
+                  <button class="btn btn-sm btn-danger" @click="deleteUser(user)" style="margin-left: 8px;">Delete</button>
+                </td>
+              </tr>
+            </template>
+            
+            <tr x-show="filteredUsers.length === 0">
+              <td colspan="6" class="empty-state" style="text-align: center; padding: 48px; color: #71717a;">
+                <p x-text="users.length === 0 ? 'No users yet' : 'No users match your search'"></p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Create/Edit User Modal -->
+    <div x-show="showCreateModal || showEditModal" 
+         x-cloak
+         class="modal-overlay"
+         @click.self="closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 x-text="showCreateModal ? 'Add User' : 'Edit User'"></h2>
+          <button class="close-btn" @click="closeModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div x-show="alert.show" 
+               class="alert" 
+               :class="alert.type === 'success' ? 'alert-success' : 'alert-error'"
+               x-text="alert.message"></div>
+          
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" x-model="formData.email" :disabled="showEditModal" required>
+          </div>
+          
+          <div class="form-group" x-show="showCreateModal">
+            <label>Password *</label>
+            <input type="password" x-model="formData.password" required>
+          </div>
+          
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" x-model="formData.name">
+          </div>
+          
+          <div class="form-group">
+            <label>Role *</label>
+            <select x-model="formData.role">
+              <option value="ADMIN">Admin</option>
+              <option value="DEVELOPER">Developer</option>
+              <option value="VIEWER">Viewer</option>
+            </select>
+          </div>
+          
+          <div class="form-group" x-show="showEditModal">
+            <label style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" x-model="formData.active" style="width: auto;">
+              Active User
+            </label>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeModal()">Cancel</button>
+          <button class="btn btn-primary" @click="saveUser()" :disabled="saving">
+            <span x-show="!saving">Save</span>
+            <span x-show="saving">Saving...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div x-show="showDeleteModal" 
+         x-cloak
+         class="modal-overlay"
+         @click.self="showDeleteModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Confirm Delete</h2>
+          <button class="close-btn" @click="showDeleteModal = false">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <p>Are you sure you want to delete user <strong x-text="userToDelete?.email"></strong>?</p>
+          <p style="color: #ef4444; margin-top: 12px;">This action cannot be undone.</p>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="showDeleteModal = false">Cancel</button>
+          <button class="btn btn-danger" @click="confirmDelete()">Delete User</button>
+        </div>
+      </div>
+    </div>
+    
+    <footer>
+      <p>Debugg Dashboard v2.0 | User Management</p>
+    </footer>
+  </div>
+  
+  <script>
+    function userManagement() {
+      return {
+        users: [],
+        filteredUsers: [],
+        stats: { total: 0, active: 0, byRole: {} },
+        searchQuery: '',
+        roleFilter: '',
+        showCreateModal: false,
+        showEditModal: false,
+        showDeleteModal: false,
+        userToDelete: null,
+        formData: {
+          id: '',
+          email: '',
+          password: '',
+          name: '',
+          role: 'VIEWER',
+          active: true
+        },
+        alert: { show: false, message: '', type: 'info' },
+        saving: false,
+        
+        async init() {
+          await this.loadUsers();
+        },
+        
+        async loadUsers() {
+          try {
+            const response = await fetch('/api/users');
+            const data = await response.json();
+            
+            if (data.success) {
+              this.users = data.users;
+              this.filteredUsers = data.users;
+              this.stats = data.stats;
+            }
+          } catch (error) {
+            console.error('Failed to load users:', error);
+            this.showAlert('Failed to load users', 'error');
+          }
+        },
+        
+        filterUsers() {
+          let filtered = [...this.users];
+          
+          if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(u => 
+              u.email.toLowerCase().includes(query) ||
+              (u.name && u.name.toLowerCase().includes(query))
+            );
+          }
+          
+          if (this.roleFilter) {
+            filtered = filtered.filter(u => u.role === this.roleFilter);
+          }
+          
+          this.filteredUsers = filtered;
+        },
+        
+        showCreateUser() {
+          this.formData = {
+            id: '',
+            email: '',
+            password: '',
+            name: '',
+            role: 'VIEWER',
+            active: true
+          };
+          this.showCreateModal = true;
+        },
+        
+        editUser(user) {
+          this.formData = {
+            id: user.id,
+            email: user.email,
+            password: '',
+            name: user.name || '',
+            role: user.role,
+            active: user.active
+          };
+          this.showEditModal = true;
+        },
+        
+        async saveUser() {
+          this.saving = true;
+          
+          try {
+            const url = this.showCreateModal ? '/api/users' : `/api/users/${this.formData.id}`;
+            const method = this.showCreateModal ? 'POST' : 'PATCH';
+            
+            const body = { ...this.formData };
+            if (this.showEditModal && !body.password) {
+              delete body.password;
+            }
+            
+            const response = await fetch(url, {
+              method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.showAlert(`User ${this.showCreateModal ? 'created' : 'updated'} successfully`, 'success');
+              this.closeModal();
+              await this.loadUsers();
+            } else {
+              this.showAlert(data.error || 'Failed to save user', 'error');
+            }
+          } catch (error) {
+            this.showAlert('Failed to save user', 'error');
+          } finally {
+            this.saving = false;
+          }
+        },
+        
+        deleteUser(user) {
+          this.userToDelete = user;
+          this.showDeleteModal = true;
+        },
+        
+        async confirmDelete() {
+          try {
+            const response = await fetch(`/api/users/${this.userToDelete.id}`, {
+              method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.showAlert('User deleted successfully', 'success');
+              this.showDeleteModal = false;
+              await this.loadUsers();
+            } else {
+              this.showAlert(data.error || 'Failed to delete user', 'error');
+            }
+          } catch (error) {
+            this.showAlert('Failed to delete user', 'error');
+          }
+        },
+        
+        closeModal() {
+          this.showCreateModal = false;
+          this.showEditModal = false;
+          this.showDeleteModal = false;
+          this.formData = {};
+          this.alert = { show: false, message: '', type: 'info' };
+        },
+        
+        showAlert(message, type) {
+          this.alert = { show: true, message, type };
+          setTimeout(() => {
+            this.alert.show = false;
+          }, 5000);
+        },
+        
+        formatDate(timestamp) {
+          return new Date(timestamp).toLocaleString();
+        }
+      }
+    }
+  </script>
+</body>
+</html>

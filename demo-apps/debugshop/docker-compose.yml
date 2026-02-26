@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # DebugShop Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_DEBUGG_URL=http://debugg:3001
+      - VITE_API_URL=http://backend:3001
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # DebugShop Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DEBUGG_DASHBOARD_URL=http://debugg:3001
+    depends_on:
+      - debugg
+      - redis
+      - db
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Debugg Dashboard
+  debugg:
+    image: debugg/dashboard:latest
+    ports:
+      - "4000:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://debugg:debugg@db:5432/debugg
+      - REDIS_URL=redis://redis:6379
+      - DASHBOARD_API_KEY=demo-key-12345
+    depends_on:
+      - db
+      - redis
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=debugg
+      - POSTGRES_PASSWORD=debugg
+      - POSTGRES_DB=debugg
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: debugshop-network

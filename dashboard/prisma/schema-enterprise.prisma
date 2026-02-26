@@ -1,0 +1,436 @@
+// Prisma Schema for Enterprise Features
+// Includes: SSO, Advanced RBAC, Multi-Tenancy, Compliance
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Organizations & Multi-Tenancy ====================
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  logo        String?
+  
+  // Settings
+  settings    Json?
+  features    Json?    // Enabled features per org
+  
+  // Compliance
+  compliance  ComplianceSettings?
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  users       User[]
+  projects    Project[]
+  teams       Team[]
+  ssoConfigs  SSOConfig[]
+  
+  @@index([slug])
+  @@index([domain])
+}
+
+model ComplianceSettings {
+  id              String   @id @default(uuid())
+  organizationId  String   @unique
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Compliance standards
+  soc2Enabled     Boolean  @default(false)
+  gdprEnabled     Boolean  @default(false)
+  hipaaEnabled    Boolean  @default(false)
+  iso27001Enabled Boolean  @default(false)
+  
+  // Data retention
+  dataRetentionDays Int    @default(365)
+  auditLogRetentionDays Int @default(2555) // 7 years
+  
+  // Security
+  mfaRequired       Boolean @default(false)
+  passwordPolicy    Json?
+  sessionTimeout    Int     @default(480) // minutes
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([organizationId])
+}
+
+// ==================== Teams & Advanced RBAC ====================
+
+model Team {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Permissions
+  permissions    Json?    // Custom permissions
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  members        TeamMember[]
+  resources      ResourceAccess[]
+  
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // ADMIN, MEMBER, VIEWER
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+model Resource {
+  id             String   @id @default(uuid())
+  name           String
+  type           String   // project, dashboard, report, etc.
+  organizationId String
+  
+  metadata       Json?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  access         ResourceAccess[]
+  
+  @@index([organizationId])
+  @@index([type])
+}
+
+model ResourceAccess {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  teamId     String?
+  team       Team?    @relation(fields: [teamId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  
+  // Permissions
+  canRead    Boolean  @default(true)
+  canWrite   Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canShare   Boolean  @default(false)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([resourceId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// ==================== SSO Configuration ====================
+
+model SSOConfig {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Provider
+  provider       String   // saml, oidc, oauth
+  providerName   String   // Okta, Azure AD, Google, etc.
+  
+  // SAML Configuration
+  samlEntryPoint String?
+  samlIssuer     String?
+  samlCert       String?
+  
+  // OIDC Configuration
+  oidcIssuer     String?
+  oidcClientId   String?
+  oidcSecret     String?
+  
+  // Settings
+  enabled        Boolean  @default(true)
+  autoProvision  Boolean  @default(false)
+  defaultRole    String   @default("VIEWER")
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([organizationId])
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String?  // Null for SSO users
+  role          String   @default("VIEWER") // ADMIN, DEVELOPER, VIEWER
+  active        Boolean  @default(true)
+  emailVerified Boolean  @default(true) // Verified for SSO
+  
+  // Organization
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  
+  // SSO
+  ssoProvider   String?
+  ssoId         String?  // External ID from SSO provider
+  
+  // Security
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?
+  
+  // Metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  
+  // Relations
+  projects      ProjectMember[]
+  auditLogs     AuditLog[]
+  sessions      Session[]
+  teams         TeamMember[]
+  resourceAccess ResourceAccess[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([organizationId])
+  @@index([ssoId])
+}
+
+// ==================== Projects & Errors (Enhanced) ====================
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  apiKey      String   @unique
+  description String?
+  active      Boolean  @default(true)
+  
+  // Organization
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  
+  // SLA Settings
+  slaConfig     SLAConfig?
+  
+  // Settings
+  settings    Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  members     ProjectMember[]
+  errors      ErrorRecord[]
+  alerts      AlertRule[]
+  
+  @@index([slug])
+  @@index([apiKey])
+  @@index([organizationId])
+}
+
+model SLAConfig {
+  id          String   @id @default(uuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Targets
+  uptimeTarget    Float  @default(99.9) // percentage
+  mttrTarget      Int    @default(60)   // minutes
+  errorRateTarget Float  @default(1.0)  // percentage
+  
+  // Alerts
+  breachAlert     Boolean @default(true)
+  alertEmails     String[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([projectId])
+}
+
+model ErrorRecord {
+  id          String   @id @default(uuid())
+  errorId     String   @unique
+  name        String
+  message     String
+  severity    String
+  status      String   @default("OPEN")
+  
+  // Data
+  context     String   // JSON
+  metadata    String   // JSON
+  stack       String?
+  fingerprint String
+  
+  // Timestamps
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Workflow
+  assignedTo  String?
+  resolvedAt  DateTime?
+  ignoredAt   DateTime?
+  
+  // Relations
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  
+  occurrences ErrorOccurrence[]
+  comments    Comment[]
+  
+  @@index([fingerprint])
+  @@index([severity])
+  @@index([status])
+  @@index([timestamp])
+  @@index([projectId])
+}
+
+model ErrorOccurrence {
+  id        String   @id @default(uuid())
+  errorId   String
+  error     ErrorRecord @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  context   String   // JSON
+  
+  @@index([errorId])
+  @@index([timestamp])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  errorId   String
+  error     ErrorRecord @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([errorId])
+  @@index([userId])
+}
+
+// ==================== Audit & Compliance ====================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+  
+  // Actor
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  userName    String?
+  
+  // Organization
+  organizationId String?
+  
+  // Action
+  action      String
+  resourceType String
+  resourceId  String?
+  
+  // Details
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  
+  // Result
+  success     Boolean  @default(true)
+  errorMessage String?
+  
+  // Compliance
+  complianceFlags Json? // GDPR, HIPAA flags
+  
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resourceType, resourceId])
+  @@index([organizationId])
+}
+
+model ComplianceReport {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // SOC2, GDPR, HIPAA, ISO27001
+  status      String   @default("GENERATING")
+  
+  // Parameters
+  dateFrom    DateTime
+  dateTo      DateTime
+  filters     Json?
+  
+  // Output
+  reportUrl   String?
+  expiresAt   DateTime?
+  
+  // Metadata
+  generatedBy String?
+  createdAt   DateTime @default(now())
+  
+  @@index([type])
+  @@index([status])
+}
+
+// ==================== Alerts & Notifications ====================
+
+model AlertRule {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  active    Boolean  @default(true)
+  
+  // Conditions
+  severity  String?  // JSON array
+  count     Int?
+  window    Int?     // Minutes
+  
+  // Actions
+  type      String   // email, slack, webhook, pagerduty
+  config    String   // JSON config
+  
+  // Escalation
+  escalateAfter Int?  // Minutes
+  escalateTo    String[] // User IDs
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([projectId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}

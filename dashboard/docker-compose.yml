@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # Dashboard Application
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: debugg-dashboard
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3001
+      - DATABASE_URL=postgresql://${DB_USER:-debugg}:${DB_PASSWORD:-debugg_secret}@db:5432/debugg?schema=public
+      - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - dashboard_data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - debugg-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.debugg.service=dashboard"
+      - "com.debugg.version=2.0"
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: debugg-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-debugg}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-debugg_secret}
+      - POSTGRES_DB=debugg
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - debugg-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-debugg} -d debugg"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: debugg-pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@debugg.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - debugg-network
+    depends_on:
+      - db
+    profiles:
+      - tools
+
+networks:
+  debugg-network:
+    driver: bridge
+    name: debugg-network
+
+volumes:
+  postgres_data:
+    name: debugg-postgres-data
+  pgadmin_data:
+    name: debugg-pgadmin-data
+  dashboard_data:
+    name: debugg-dashboard-data
