@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debugg — The Future of Error Monitoring</title>
+  <meta name="description"
+    content="Debugg - Smart Error Handling for Developers. 10x better than Sentry at 1/10th the cost. AI-powered error monitoring with 5-minute setup.">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Preconnect to Font APIs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Iconify -->
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #09090b;
+      --fg: #f4f4f5;
+      --accent: #52525b;
+      --accent-glow: rgba(168, 85, 247, 0.4);
+      --accent-glow-2: rgba(56, 189, 248, 0.4);
+      --primary: #FF4757;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-sans: 'Outfit', sans-serif;
+      --border-radius: 20px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: initial;
+      /* Lenis takes over */
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Noise Overlay for texture */
+    .noise {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.035;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    ::selection {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
+    /* Custom Cursor */
+    #cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--fg);
+      pointer-events: none;
+      z-index: 10000;
+      mix-blend-mode: difference;
+      transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      transform: translate(-50%, -50%);
+      will-change: transform;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      padding: 2rem 4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: padding 0.5s ease;
+      /* mix-blend-mode: difference; */
+    }
+
+    .nav.scrolled {
+      padding: 1rem 4rem;
+      background: rgba(9, 9, 11, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .brand {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-icon {
+      color: var(--primary);
+      font-size: 1.8rem;
+      line-height: 1;
+      margin-top: -2px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 3rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-links a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      position: relative;
+      transition: color 0.3s;
+    }
+
+    .nav-links a:hover {
+      color: var(--fg);
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--fg);
+      transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .btn {
+      padding: 0.8rem 1.8rem;
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: transparent;
+      color: var(--fg);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--fg);
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      z-index: -1;
+    }
+
+    .btn:hover::before {
+      transform: translateY(0);
+    }
+
+    .btn:hover {
+      color: var(--bg);
+      border-color: var(--fg);
+    }
+
+    .btn-primary {
+      background: var(--fg);
+      color: var(--bg);
+      border: 1px solid var(--fg);
+    }
+
+    .btn-primary::before {
+      background: var(--bg);
+    }
+
+    .btn-primary:hover {
+      color: var(--fg);
+    }
+
+    /* Glow Elements */
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      z-index: 0;
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .glow-1 {
+      top: -20%;
+      left: -10%;
+      width: 60vw;
+      height: 60vw;
+      background: var(--accent-glow);
+    }
+
+    .glow-2 {
+      top: 30%;
+      right: -20%;
+      width: 70vw;
+      height: 70vw;
+      background: var(--accent-glow-2);
+    }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 4rem;
+      position: relative;
+    }
+
+    .hero-content {
+      z-index: 2;
+      position: relative;
+      max-width: 800px;
+      margin-top: 5rem;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 7vw, 7rem);
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.4) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: clamp(1rem, 1.5vw, 1.3rem);
+      max-width: 550px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.6;
+      margin-bottom: 3.5rem;
+      font-weight: 300;
+    }
+
+    .hero .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 2.5rem;
+      color: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+
+    .hero-image {
+      position: absolute;
+      top: 50%;
+      right: 5%;
+      width: 45vw;
+      max-width: 900px;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(-40%);
+      filter: drop-shadow(0 0 80px rgba(0, 0, 0, 0.8));
+    }
+
+    /* Sections */
+    .section {
+      padding: 8rem 4rem;
+      position: relative;
+    }
+
+    .title-line {
+      display: flex;
+      align-items: flex-end;
+      gap: 2rem;
+      margin-bottom: 5rem;
+    }
+
+    .title-line h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 4.5rem);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .title-line .line {
+      flex-grow: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-bottom: 1.2rem;
+    }
+
+    .title-line .num {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      opacity: 0.4;
+      margin-bottom: 0.4rem;
+    }
+
+    /* Mockup Element */
+    .mockup-wrapper {
+      position: relative;
+      border-radius: 24px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.02) 100%);
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      transform: translateY(50px);
+      opacity: 0;
+      box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 1);
+    }
+
+    .mockup-wrapper img {
+      width: 100%;
+      border-radius: 24px;
+      display: block;
+      background: #111;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 4rem 3rem;
+      margin-top: 6rem;
+    }
+
+    .feature {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 2rem;
+      position: relative;
+    }
+
+    .feature .icon-container {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      color: var(--fg);
+      opacity: 0.8;
+    }
+
+    .feature h3 {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .feature p {
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.6;
+      font-size: 1.05rem;
+      font-weight: 300;
+    }
+
+    /* Reveal Classes */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+
+    .reveal-scale {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    .reveal-left {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+
+    /* Metrics Section */
+    .metrics {
+      display: flex;
+      gap: 4rem;
+      margin-top: 8rem;
+      padding-top: 4rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .metric {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.5) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .metric-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Footer */
+    footer {
+      padding: 6rem 4rem;
+      margin-top: 5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 4rem;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .footer-huge {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 8vw, 10rem);
+      line-height: 0.8;
+      letter-spacing: -0.05em;
+      opacity: 0.1;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-left: -5px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 4rem;
+    }
+
+    .footer-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .footer-col span {
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    .footer-col a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      transition: color 0.3s;
+      font-size: 0.95rem;
+    }
+
+    .footer-col a:hover {
+      color: var(--fg);
+    }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 0.85rem;
+    }
+
+    /* Mobile Adaptations */
+    @media(max-width: 900px) {
+      .hero h1 {
+        font-size: 4rem;
+      }
+
+      .nav {
+        padding: 1.5rem;
+      }
+
+      .nav.scrolled {
+        padding: 1rem 1.5rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        padding: 0 1.5rem;
+        min-height: 85vh;
+        justify-content: center;
+      }
+
+      .section {
+        padding: 6rem 1.5rem;
+      }
+
+      .title-line {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 3rem;
+      }
+
+      .title-line .line {
+        height: 1px;
+        width: 100%;
+        margin: 1rem 0;
+      }
+
+      .title-line h2 {
+        font-size: 3rem;
+      }
+
+      .hero-image {
+        position: relative;
+        width: 100%;
+        top: auto;
+        right: auto;
+        margin-top: 3rem;
+        transform: none;
+        filter: drop-shadow(0 0 30px rgba(0, 0, 0, 0.8));
+        opacity: 1;
+      }
+
+      .metrics {
+        flex-direction: column;
+        gap: 3rem;
+        margin-top: 4rem;
+      }
+
+      footer {
+        padding: 4rem 1.5rem;
+      }
+
+      .footer-top {
+        flex-direction: column;
+        gap: 3rem;
+      }
+
+      .footer-links {
+        flex-wrap: wrap;
+        gap: 3rem;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      #cursor {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="noise"></div>
+  <div id="cursor"></div>
+
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <nav class="nav">
+    <div class="brand">
+      <iconify-icon icon="solar:bug-minimalistic-bold" class="brand-icon"></iconify-icon>
+      Debugg
+    </div>
+    <div class="nav-links">
+      <a href="#platform">Platform</a>
+      <a href="#features">Features</a>
+      <a href="#compare">Compare</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a href="https://github.com/debugg/debugg" class="btn">
+      <iconify-icon icon="solar:github-bold"></iconify-icon> Repository
+    </a>
+  </nav>
+
+  <section class="hero">
+    <img src="assets/hero_shape.png" alt="Abstract 3D Shape" class="hero-image" id="hero-img">
+    <div class="hero-content">
+      <div class="pill reveal">
+        <span class="dot"></span>
+        Next-Gen Error Handling
+      </div>
+      <h1 class="reveal"><span class="gradient-text">Clarity</span><br>in Chaos.</h1>
+      <p class="reveal">10x better than competitors at 1/10th the cost. AI-powered error tracking designed for modern
+        enterprise architecture. Setup in 5 minutes.</p>
+      <div class="reveal" style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem;">
+        <a href="https://github.com/debugg/debugg" class="btn btn-primary">Start Free <iconify-icon
+            icon="solar:arrow-right-line-duotone"></iconify-icon></a>
+        <a href="#platform" class="btn">Discover Platform</a>
+      </div>
+
+      <div class="metrics reveal" style="transition-delay: 0.4s;">
+        <div class="metric">
+          <div class="metric-value">5m</div>
+          <div class="metric-label">Avg Setup Time</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">100%</div>
+          <div class="metric-label">Open Source</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">-90%</div>
+          <div class="metric-label">Cost Reduction</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="platform">
+    <div class="title-line reveal">
+      <span class="num">01</span>
+      <h2>The Interface.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="mockup-wrapper reveal-scale" id="mockup">
+      <img src="assets/dashboard_mockup.png" alt="Debugg Avant-Garde Dashboard">
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="title-line reveal">
+      <span class="num">02</span>
+      <h2>Architecture.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <div class="icon-container"><iconify-icon icon="solar:cpu-bolt-line-duotone"></iconify-icon></div>
+        <h3>Autonomous Clustering</h3>
+        <p>Our bespoke AI engine maps semantic relationships between StackTraces, instantly grouping thousands of
+          instances into a single actionable root cause.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon-container"><iconify-icon icon="solar:radar-line-duotone"></iconify-icon></div>
+        <h3>Predictive Analytics</h3>
+        <p>Forecast error trends and deploy preventive fixes before they impact user experience with our proprietary
+          predictive observability pipeline.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon-container"><iconify-icon icon="solar:shield-keyhole-line-duotone"></iconify-icon></div>
+        <h3>Intentional Security</h3>
+        <p>SOC2 compliant out of the box. Self-hosting options allow you to maintain absolute data sovereignty without
+          compromising on the modern developer experience.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon-container"><iconify-icon icon="solar:layers-minimalistic-line-duotone"></iconify-icon></div>
+        <h3>Multi-Platform Core</h3>
+        <p>A unified telemetry approach. Native support for React, Vue, Node.js, Next, and React Native through a
+          single, lightweight architecture.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="compare" style="padding-top: 2rem;">
+    <div class="title-line reveal">
+      <span class="num">03</span>
+      <h2>Versus Legacy.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="reveal"
+      style="max-width: 1000px; margin: 4rem auto 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; overflow: hidden; background: rgba(255,255,255,0.02); backdrop-filter: blur(10px);">
+      <div
+        style="display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center; font-family: var(--font-display); font-weight: 500;">
+        <div
+          style="color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.85rem;">
+          Capability</div>
+        <div style="color: var(--fg); font-size: 1.2rem;">Debugg</div>
+        <div style="color: rgba(255,255,255,0.3); font-size: 1.1rem;">Sentry</div>
+      </div>
+      <div
+        style="display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center;">
+        <div style="color: rgba(255,255,255,0.8);">Price (100K errors / mo)</div>
+        <div style="color: var(--primary); font-weight: 700;">$0</div>
+        <div style="color: rgba(255,255,255,0.3);">$399/mo</div>
+      </div>
+      <div
+        style="display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center;">
+        <div style="color: rgba(255,255,255,0.8);">Setup Time</div>
+        <div style="color: var(--fg);">5 minutes</div>
+        <div style="color: rgba(255,255,255,0.3);">30+ minutes</div>
+      </div>
+      <div
+        style="display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center;">
+        <div style="color: rgba(255,255,255,0.8);">Open Source & Self-Hostable</div>
+        <div style="color: var(--fg);"><iconify-icon icon="solar:check-circle-bold-duotone"
+            style="color: var(--primary); transform: translateY(2px); font-size: 1.2rem;"></iconify-icon></div>
+        <div style="color: rgba(255,255,255,0.3);"><iconify-icon icon="solar:close-circle-line-duotone"
+            style="transform: translateY(2px); font-size: 1.2rem;"></iconify-icon></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 1.5rem 2rem; align-items: center;">
+        <div style="color: rgba(255,255,255,0.8);">AI Error Clustering</div>
+        <div style="color: var(--fg);"><iconify-icon icon="solar:check-circle-bold-duotone"
+            style="color: var(--primary); transform: translateY(2px); font-size: 1.2rem;"></iconify-icon></div>
+        <div style="color: rgba(255,255,255,0.3);"><iconify-icon icon="solar:close-circle-line-duotone"
+            style="transform: translateY(2px); font-size: 1.2rem;"></iconify-icon></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing" style="padding-top: 2rem;">
+    <div class="title-line reveal">
+      <span class="num">04</span>
+      <h2>Pricing.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="reveal"
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 4rem;">
+      <div
+        style="border: 1px solid rgba(255,255,255,0.1); padding: 3rem; border-radius: 20px; background: rgba(255,255,255,0.02); backdrop-filter: blur(10px);">
+        <h3 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.5rem;">Free</h3>
+        <div style="font-size: 3rem; font-family: var(--font-display); font-weight: 700; margin-bottom: 1rem;">$0<span
+            style="font-size: 1rem; color: rgba(255,255,255,0.5); font-weight: 400;">/mo</span></div>
+        <ul
+          style="list-style: none; margin-bottom: 2rem; color: rgba(255,255,255,0.7); display: flex; flex-direction: column; gap: 0.8rem;">
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 50K
+            errors/month</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 1 team
+            member</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 7-day
+            retention</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon>
+            Self-hosted option</li>
+        </ul>
+        <a href="https://github.com/debugg/debugg" class="btn" style="width: 100%; justify-content: center;">Start
+          Free</a>
+      </div>
+      <div
+        style="border: 1px solid rgba(255,255,255,0.3); padding: 3rem; border-radius: 20px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); position: relative;">
+        <div
+          style="position: absolute; top: -12px; right: 2rem; background: var(--fg); color: var(--bg); padding: 5px 15px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+          Most Popular</div>
+        <h3 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.5rem;">Starter</h3>
+        <div style="font-size: 3rem; font-family: var(--font-display); font-weight: 700; margin-bottom: 1rem;">$49<span
+            style="font-size: 1rem; color: rgba(255,255,255,0.5); font-weight: 400;">/mo</span></div>
+        <ul
+          style="list-style: none; margin-bottom: 2rem; color: rgba(255,255,255,0.9); display: flex; flex-direction: column; gap: 0.8rem;">
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 500K
+            errors/month</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 5 team
+            members</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 30-day
+            retention</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> Save
+            $350/mo vs Sentry</li>
+        </ul>
+        <a href="https://github.com/debugg/debugg" class="btn btn-primary"
+          style="width: 100%; justify-content: center;">Start Free Trial</a>
+      </div>
+      <div
+        style="border: 1px solid rgba(255,255,255,0.1); padding: 3rem; border-radius: 20px; background: rgba(255,255,255,0.02); backdrop-filter: blur(10px);">
+        <h3 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.5rem;">Professional</h3>
+        <div style="font-size: 3rem; font-family: var(--font-display); font-weight: 700; margin-bottom: 1rem;">$199<span
+            style="font-size: 1rem; color: rgba(255,255,255,0.5); font-weight: 400;">/mo</span></div>
+        <ul
+          style="list-style: none; margin-bottom: 2rem; color: rgba(255,255,255,0.7); display: flex; flex-direction: column; gap: 0.8rem;">
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 5M
+            errors/month</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> 25 team
+            members</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> Priority
+            Support & 90-day rentention</li>
+          <li><iconify-icon icon="solar:check-circle-bold-duotone"
+              style="color: var(--primary); margin-right: 0.5rem; transform: translateY(2px);"></iconify-icon> Save
+            $1000/mo vs Sentry</li>
+        </ul>
+        <a href="mailto:sales@debugg.example.com" class="btn" style="width: 100%; justify-content: center;">Contact
+          Sales</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="testimonials">
+    <div class="title-line reveal">
+      <span class="num">05</span>
+      <h2>Proof.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="reveal"
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; margin-top: 4rem;">
+      <div style="padding-left: 1.5rem; position: relative; border-left: 1px solid rgba(255,255,255,0.1);">
+        <p
+          style="color: rgba(255,255,255,0.7); font-size: 1.1rem; line-height: 1.6; font-style: italic; margin-bottom: 2rem;">
+          "We switched from Sentry and saved $50K/year. Debugg is faster, easier to use, and the AI features are
+          incredible. Setup took 5 minutes!"</p>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div
+            style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1);">
+          </div>
+          <div>
+            <div style="color: var(--fg); font-weight: 500;">Sarah Chen</div>
+            <div
+              style="color: rgba(255,255,255,0.4); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              CTO, TechStart</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding-left: 1.5rem; position: relative; border-left: 1px solid rgba(255,255,255,0.1);">
+        <p
+          style="color: rgba(255,255,255,0.7); font-size: 1.1rem; line-height: 1.6; font-style: italic; margin-bottom: 2rem;">
+          "The AI error clustering is a game-changer. What used to take hours now takes minutes. Debugg has made our
+          team 10x more productive."</p>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div
+            style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1);">
+          </div>
+          <div>
+            <div style="color: var(--fg); font-weight: 500;">Marcus Rodriguez</div>
+            <div
+              style="color: rgba(255,255,255,0.4); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              Lead Dev, ScaleUp</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding-left: 1.5rem; position: relative; border-left: 1px solid rgba(255,255,255,0.1);">
+        <p
+          style="color: rgba(255,255,255,0.7); font-size: 1.1rem; line-height: 1.6; font-style: italic; margin-bottom: 2rem;">
+          "Finally, an error monitoring tool that doesn't break the bank. Self-hosted is free, and features blow away
+          competitors costing 10x more."</p>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div
+            style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.1);">
+          </div>
+          <div>
+            <div style="color: var(--fg); font-weight: 500;">Emily Watson</div>
+            <div
+              style="color: rgba(255,255,255,0.4); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              Founder, DevTools Co</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="title-line reveal">
+      <span class="num">06</span>
+      <h2>Questions.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="reveal"
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 4rem 3rem; margin-top: 4rem;">
+      <div style="border-left: 1px solid var(--primary); padding-left: 1.5rem; position: relative;">
+        <h3
+          style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 1rem; font-weight: 500; color: var(--fg);">
+          What exactly is Debugg?</h3>
+        <p style="color: rgba(255,255,255,0.5); font-size: 1.05rem; line-height: 1.6; font-weight: 300;">A
+          comprehensive, cross-platform error handling and monitoring library. It provides unified error handling with
+          automatic severity classification and multiple reporters with an ultra-minimal footprint.</p>
+      </div>
+
+      <div style="border-left: 1px solid var(--primary); padding-left: 1.5rem; position: relative;">
+        <h3
+          style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 1rem; font-weight: 500; color: var(--fg);">
+          Is there a performance overhead?</h3>
+        <p style="color: rgba(255,255,255,0.5); font-size: 1.05rem; line-height: 1.6; font-weight: 300;">Almost none.
+          Debugg is optimized for production. Error creation takes &lt; 0.1ms, handling takes &lt; 1ms, and it consumes
+          &lt; 1KB of memory per error. It is built for pure efficiency.</p>
+      </div>
+
+      <div style="border-left: 1px solid var(--primary); padding-left: 1.5rem; position: relative;">
+        <h3
+          style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 1rem; font-weight: 500; color: var(--fg);">
+          Why choose Debugg over Sentry?</h3>
+        <p style="color: rgba(255,255,255,0.5); font-size: 1.05rem; line-height: 1.6; font-weight: 300;">We offer
+          automatic classification out-of-the-box, built-in rate limiting, and an incredibly lightweight bundle size
+          (~73 KB). Most importantly, we're 10x cheaper for comparable scale.</p>
+      </div>
+
+      <div style="border-left: 1px solid var(--primary); padding-left: 1.5rem; position: relative;">
+        <h3
+          style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 1rem; font-weight: 500; color: var(--fg);">
+          Does it support Next.js or React Native?</h3>
+        <p style="color: rgba(255,255,255,0.5); font-size: 1.05rem; line-height: 1.6; font-weight: 300;">Yes. Debugg has
+          cross-platform support. Whether you use Node, Edge, traditional React, or React Native, you integrate once
+          with a unified API.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 5rem; padding-bottom: 5rem;">
+    <div class="title-line reveal">
+      <span class="num">07</span>
+      <h2>Zero-Friction.</h2>
+      <div class="line"></div>
+    </div>
+    <div class="reveal" style="text-align: center; margin-top: 5rem;">
+      <h2
+        style="font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem); font-weight: 500; margin-bottom: 2rem;">
+        Ready to debug smarter?</h2>
+      <a href="https://github.com/debugg/debugg" class="btn btn-primary"
+        style="padding: 1.2rem 3rem; font-size: 1.1rem;">Install Debugg <iconify-icon
+          icon="solar:rocket-line-duotone"></iconify-icon></a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-top">
+      <div class="footer-huge reveal-left">DEBUGG</div>
+      <div class="footer-links reveal">
+        <div class="footer-col">
+          <span>Product</span>
+          <a href="#platform">Platform</a>
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="footer-col">
+          <span>Resources</span>
+          <a href="/docs">Documentation</a>
+          <a href="/api">API Reference</a>
+          <a href="https://github.com/debugg/debugg">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <span>Company</span>
+          <a href="/about">About Us</a>
+          <a href="/careers">Careers</a>
+          <a href="/legal">Legal / Privacy</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>© 2026 Debugg Inc. All rights reserved.</div>
+      <div>Engineered with Intentional Minimalism.</div>
+    </div>
+  </footer>
+
+  <!-- GSAP for Animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+  <!-- Lenis for smooth scrolling -->
+  <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+
+  <script>
+    // Smooth scrolling setup
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      direction: 'vertical',
+      gestureDirection: 'vertical',
+      smooth: true,
+      mouseMultiplier: 1,
+      smoothTouch: false,
+      touchMultiplier: 2,
+    });
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // Custom Cursor logic
+    const cursor = document.getElementById('cursor');
+    if (window.innerWidth > 900) {
+      let cursorX = window.innerWidth / 2, cursorY = window.innerHeight / 2;
+      let targetX = cursorX, targetY = cursorY;
+
+      document.addEventListener('mousemove', (e) => {
+        targetX = e.clientX;
+        targetY = e.clientY;
+      });
+
+      function animateCursor() {
+        const dx = targetX - cursorX;
+        const dy = targetY - cursorY;
+        cursorX += dx * 0.15;
+        cursorY += dy * 0.15;
+        cursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+        requestAnimationFrame(animateCursor);
+      }
+      animateCursor();
+
+      // Hover enlargement on interactive elements
+      document.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          cursor.style.width = '40px';
+          cursor.style.height = '40px';
+          cursor.style.background = 'transparent';
+          cursor.style.border = '1px solid var(--fg)';
+        });
+        el.addEventListener('mouseleave', () => {
+          cursor.style.width = '12px';
+          cursor.style.height = '12px';
+          cursor.style.background = 'var(--fg)';
+          cursor.style.border = 'none';
+        });
+      });
+    }
+
+    // Scroll Header effect
+    const nav = document.querySelector('.nav');
+    lenis.on('scroll', (e) => {
+      if (e.animatedScroll > 50) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+
+    // GSAP Animations
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Sync ScrollTrigger with Lenis
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000)
+    });
+    gsap.ticker.lagSmoothing(0)
+
+    // Initial load reveals
+    const masterTimeline = gsap.timeline({ delay: 0.2 });
+
+    // Reveal arrays mapped manually since querySelectorAll returns a nodelist
+    const heroReveals = document.querySelectorAll('.hero .reveal');
+    masterTimeline.to(heroReveals, {
+      y: 0,
+      opacity: 1,
+      duration: 1.2,
+      stagger: 0.1,
+      ease: "power4.out"
+    });
+
+    // Hero image 3D Entrance
+    if (window.innerWidth > 900) {
+      masterTimeline.to('#hero-img', {
+        y: '-50%',
+        opacity: 1,
+        duration: 2,
+        ease: "expo.out"
+      }, "-=1.0");
+
+      // Continuous float
+      gsap.to('#hero-img', {
+        y: '-53%',
+        duration: 4,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+        delay: 2.5
+      });
+    }
+
+    // Scroll-triggered animations for other sections
+    gsap.utils.toArray('.section .reveal, .section .reveal-left').forEach(elem => {
+      gsap.to(elem, {
+        scrollTrigger: {
+          trigger: elem,
+          start: 'top 85%',
+        },
+        y: 0,
+        x: 0,
+        opacity: 1,
+        duration: 1.2,
+        ease: "power3.out"
+      });
+    });
+
+    gsap.utils.toArray('.reveal-scale').forEach(elem => {
+      gsap.to(elem, {
+        scrollTrigger: {
+          trigger: elem,
+          start: 'top 85%',
+        },
+        scale: 1,
+        y: 0,
+        opacity: 1,
+        duration: 1.5,
+        ease: "power3.out"
+      });
+    });
+
+    // Parallax on mockup image
+    gsap.to('#mockup img', {
+      scrollTrigger: {
+        trigger: '#mockup',
+        start: 'top bottom',
+        end: 'bottom top',
+        scrub: true
+      },
+      y: 30,
+      ease: 'none'
+    });
+  </script>
+</body>
+
+</html>
